@@ -1,0 +1,22 @@
+# Build
+bin/
+obj/
+out/
+publish/
+TestResults/
+
+# Rider / VS
+.idea/
+.vs/
+*.user
+*.suo
+
+# NuGet
+*.nupkg
+.nuget/
+packages/
+project.lock.json
+
+# OS
+.DS_Store
+Thumbs.db

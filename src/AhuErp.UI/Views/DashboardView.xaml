@@ -1,0 +1,40 @@
+<UserControl x:Class="AhuErp.UI.Views.DashboardView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="clr-namespace:AhuErp.UI.ViewModels"
+             mc:Ignorable="d"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             d:DataContext="{d:DesignInstance Type=vm:DashboardViewModel}"
+             d:DesignHeight="480" d:DesignWidth="720">
+    <Grid Margin="24">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <TextBlock Text="Сводная панель руководителя"
+                   FontSize="22" FontWeight="SemiBold" Margin="0,0,0,16" />
+
+        <UniformGrid Grid.Row="1" Rows="1" Columns="3">
+            <Border Margin="0,0,12,0" Padding="16" Background="White" CornerRadius="6">
+                <StackPanel>
+                    <TextBlock Text="Просрочено документов" FontSize="13" Foreground="#6B7280" />
+                    <TextBlock Text="{Binding OverdueCount}" FontSize="36" FontWeight="Bold" Foreground="#DC2626" />
+                </StackPanel>
+            </Border>
+            <Border Margin="12,0" Padding="16" Background="White" CornerRadius="6">
+                <StackPanel>
+                    <TextBlock Text="Срок &lt; 3 дней" FontSize="13" Foreground="#6B7280" />
+                    <TextBlock Text="{Binding DueSoonCount}" FontSize="36" FontWeight="Bold" Foreground="#D97706" />
+                </StackPanel>
+            </Border>
+            <Border Margin="12,0,0,0" Padding="16" Background="White" CornerRadius="6">
+                <StackPanel>
+                    <TextBlock Text="В поездках ТС" FontSize="13" Foreground="#6B7280" />
+                    <TextBlock Text="{Binding ActiveVehicles}" FontSize="36" FontWeight="Bold" Foreground="#2563EB" />
+                </StackPanel>
+            </Border>
+        </UniformGrid>
+    </Grid>
+</UserControl>
