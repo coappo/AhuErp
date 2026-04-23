@@ -97,6 +97,7 @@ namespace AhuErp.UI.ViewModels
                     .Concat(_documents.ListByType(DocumentType.ArchiveRequest))
                     .Concat(_documents.ListByType(DocumentType.General))
                     .Concat(_documents.ListArchiveRequests().Cast<Document>())
+                    .Concat(_documents.ListItTickets().Cast<Document>())
                     .GroupBy(d => d.Id)
                     .Select(g => g.First())
                     .ToList();
