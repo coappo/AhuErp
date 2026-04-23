@@ -141,5 +141,49 @@ namespace AhuErp.UI.Infrastructure
                 TotalQuantity = 8
             });
         }
+
+        public static void SeedFleet(InMemoryVehicleRepository vehicles,
+                                     InMemoryDocumentRepository documents)
+        {
+            if (vehicles == null) throw new ArgumentNullException(nameof(vehicles));
+            if (documents == null) throw new ArgumentNullException(nameof(documents));
+
+            vehicles.AddVehicle(new Vehicle
+            {
+                Model = "Ford Focus",
+                LicensePlate = "А001АА 71",
+                CurrentStatus = VehicleStatus.Available
+            });
+            vehicles.AddVehicle(new Vehicle
+            {
+                Model = "Lada Largus",
+                LicensePlate = "В002ВВ 71",
+                CurrentStatus = VehicleStatus.Available
+            });
+            vehicles.AddVehicle(new Vehicle
+            {
+                Model = "ГАЗ-3302 Газель",
+                LicensePlate = "С003СС 71",
+                CurrentStatus = VehicleStatus.Maintenance
+            });
+
+            var now = DateTime.Now;
+            documents.Add(new Document
+            {
+                Title = "Заявка на транспорт: выезд в администрацию района",
+                Type = DocumentType.Fleet,
+                CreationDate = now.AddDays(-1),
+                Deadline = now.AddDays(2),
+                Status = DocumentStatus.InProgress
+            });
+            documents.Add(new Document
+            {
+                Title = "Заявка на транспорт: доставка канцелярии со склада",
+                Type = DocumentType.Fleet,
+                CreationDate = now,
+                Deadline = now.AddDays(7),
+                Status = DocumentStatus.New
+            });
+        }
     }
 }

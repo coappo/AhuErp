@@ -161,7 +161,30 @@ InventoryTransaction.DocumentId? ──(FK, ON DELETE NO ACTION)──► Docume
 
 При закрытии `ItTicket` в UI `ItServiceViewModel.Resolve()` автоматически передаёт `documentId: SelectedTicket.Id`, поэтому любое списание из Help Desk прослеживается до конкретной заявки.
 
+## Phase 4 — Fleet / Автопарк
+
+- Модель `VehicleTrip` расширена полем `DriverName` (StringLength 128). `DocumentId` остаётся nullable на уровне БД для обратной совместимости с ранее созданными поездками, но новый API бронирования требует заполненного значения. EF6 миграция `20260423175847_AddVehicleTripDriverName` добавляет колонку.
+- `IVehicleRepository` + `InMemoryVehicleRepository` — абстракция хранилища автопарка (`ListVehicles`, `GetVehicle`, `ListTrips(vehicleId)`, `AddVehicle`, `AddTrip`).
+- `IFleetService` получает вторую перегрузку `BookVehicle(int vehicleId, int documentId, DateTime start, DateTime end, string driverName)`. Phase 1-перегрузка `BookVehicle(Vehicle, ...)` сохранена для обратной совместимости и тестов.
+- UI: `FleetView` — три секции (список ТС → расписание выбранного ТС → форма бронирования с `DatePicker`/`TextBox`/`ComboBox` документа). Кнопка «Забронировать» ловит `VehicleBookingException` и показывает пользователю понятное сообщение без закрытия формы.
+- DI: `IVehicleRepository`, `IFleetService` и `FleetViewModel` зарегистрированы в `AppServices`. `MainWindow.xaml` подключает `FleetView` вместо плейсхолдера.
+- Демо-данные (`DemoDataSeeder.SeedFleet`): Ford Focus / Lada Largus / «Газель» (последняя на обслуживании) + две тестовые заявки на транспорт (`DocumentType.Fleet`).
+- Тесты: **+10** (`FleetServicePhase4Tests`) — успешное бронирование без пересечений; точное / частичное (слева и справа) / содержащее пересечение; стыковка интервалов [a,b) без пересечения; отсутствие ТС; ТС на обслуживании; пустые `driverName` / `documentId`. Итого **78 / 78**.
+
+### LINQ-логика проверки пересечений
+
+Пересечение интервалов ищется по классическому Allen-алгоритму:
+
+```csharp
+existingTrips.Any(t => t.VehicleId == vehicleId
+                       && t.StartDate < endDate
+                       && t.EndDate   > startDate);
+```
+
+Эквивалентный инвариант: «две встречи пересекаются ⇔ каждая начинается раньше конца другой». Если любое существующее бронирование удовлетворяет ему — `FleetService` выбрасывает `VehicleBookingException`. Пограничный случай `existing.EndDate == newStart` считается стыковкой (не пересечением): интервалы трактуются как полуоткрытые `[start, end)`, поэтому «спина-к-спине» бронирование разрешено.
+
+Вычисление инкапсулировано в `VehicleTrip.OverlapsWith(start, end)` и переиспользуется из обеих перегрузок `FleetService.BookVehicle`.
+
 ## Roadmap (следующие фазы)
 
-- Phase 4: «Автопарк» с календарным представлением и бронированиями поверх `FleetService`.
 - Phase 5: Дашборд-аналитика (LiveCharts), экспорт в Excel/Word, аудит и отчётность.

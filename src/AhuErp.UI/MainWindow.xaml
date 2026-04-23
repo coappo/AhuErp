@@ -29,7 +29,7 @@
             <views:WarehouseView />
         </DataTemplate>
         <DataTemplate DataType="{x:Type vm:FleetViewModel}">
-            <views:PlaceholderView />
+            <views:FleetView />
         </DataTemplate>
     </Window.Resources>
 

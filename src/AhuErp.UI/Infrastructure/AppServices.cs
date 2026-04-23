@@ -29,9 +29,11 @@ namespace AhuErp.UI.Infrastructure
             var employees = (InMemoryEmployeeRepository)_provider.GetRequiredService<IEmployeeRepository>();
             var documents = (InMemoryDocumentRepository)_provider.GetRequiredService<IDocumentRepository>();
             var inventory = (InMemoryInventoryRepository)_provider.GetRequiredService<IInventoryRepository>();
+            var vehicles = (InMemoryVehicleRepository)_provider.GetRequiredService<IVehicleRepository>();
             var hasher = _provider.GetRequiredService<IPasswordHasher>();
             DemoDataSeeder.Seed(employees, documents, hasher);
             DemoDataSeeder.SeedInventory(inventory);
+            DemoDataSeeder.SeedFleet(vehicles, documents);
         }
 
         public static T GetRequiredService<T>() where T : class =>
@@ -47,6 +49,8 @@ namespace AhuErp.UI.Infrastructure
             services.AddSingleton<ArchiveService>();
             services.AddSingleton<IInventoryRepository>(new InMemoryInventoryRepository());
             services.AddSingleton<IInventoryService, InventoryService>();
+            services.AddSingleton<IVehicleRepository>(new InMemoryVehicleRepository());
+            services.AddSingleton<IFleetService>(sp => new FleetService(sp.GetRequiredService<IVehicleRepository>()));
 
             // ViewModels — transient, чтобы получать свежее состояние при навигации.
             services.AddTransient<LoginViewModel>();
