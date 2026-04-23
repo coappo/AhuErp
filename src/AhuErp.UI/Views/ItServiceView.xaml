@@ -1,0 +1,109 @@
+<UserControl x:Class="AhuErp.UI.Views.ItServiceView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="clr-namespace:AhuErp.UI.ViewModels"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d"
+             d:DataContext="{d:DesignInstance Type=vm:ItServiceViewModel}"
+             d:DesignHeight="600" d:DesignWidth="1000">
+    <Grid Margin="24">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <TextBlock Text="IT-служба (Help Desk)"
+                   FontSize="20" FontWeight="SemiBold" Margin="0,0,0,16" />
+
+        <DataGrid Grid.Row="1"
+                  ItemsSource="{Binding Tickets}"
+                  SelectedItem="{Binding SelectedTicket, UpdateSourceTrigger=PropertyChanged}"
+                  AutoGenerateColumns="False"
+                  CanUserAddRows="False" CanUserDeleteRows="False"
+                  IsReadOnly="True"
+                  HeadersVisibility="Column"
+                  GridLinesVisibility="Horizontal">
+            <DataGrid.RowStyle>
+                <Style TargetType="DataGridRow">
+                    <Setter Property="Background"
+                            Value="{Binding Converter={StaticResource OverdueRowColorConverter}}" />
+                </Style>
+            </DataGrid.RowStyle>
+            <DataGrid.Columns>
+                <DataGridTextColumn Header="№" Binding="{Binding Id}" Width="40" />
+                <DataGridTextColumn Header="Тема" Binding="{Binding Title}" Width="*" />
+                <DataGridTextColumn Header="Оборудование" Binding="{Binding AffectedEquipment}" Width="180" />
+                <DataGridTextColumn Header="Создан" Binding="{Binding CreationDate, StringFormat=dd.MM.yyyy}" Width="100" />
+                <DataGridTextColumn Header="Срок" Binding="{Binding Deadline, StringFormat=dd.MM.yyyy}" Width="100" />
+                <DataGridTextColumn Header="Статус" Binding="{Binding Status}" Width="110" />
+            </DataGrid.Columns>
+        </DataGrid>
+
+        <Border Grid.Row="2" Margin="0,16,0,0" Padding="16" Background="White" CornerRadius="4">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="16" />
+                    <ColumnDefinition Width="360" />
+                </Grid.ColumnDefinitions>
+
+                <StackPanel>
+                    <TextBlock Text="Тема" />
+                    <TextBox Text="{Binding DraftTitle, UpdateSourceTrigger=PropertyChanged}" Padding="6" />
+
+                    <TextBlock Text="Затронутое оборудование" Margin="0,8,0,0" />
+                    <TextBox Text="{Binding DraftAffectedEquipment, UpdateSourceTrigger=PropertyChanged}" Padding="6" />
+
+                    <TextBlock Text="Заметки по решению" Margin="0,8,0,0" />
+                    <TextBox Text="{Binding DraftResolutionNotes, UpdateSourceTrigger=PropertyChanged}"
+                             Padding="6" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="60" />
+
+                    <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                        <TextBlock Text="Статус" VerticalAlignment="Center" />
+                        <ComboBox ItemsSource="{Binding Statuses}"
+                                  SelectedItem="{Binding DraftStatus, UpdateSourceTrigger=PropertyChanged}"
+                                  MinWidth="160" Margin="8,0,0,0" Padding="6" />
+                    </StackPanel>
+
+                    <StackPanel Orientation="Horizontal" Margin="0,12,0,0">
+                        <Button Content="Новая"     Command="{Binding NewCommand}"    MinWidth="90" Padding="8,6" Margin="0,0,6,0" />
+                        <Button Content="Сохранить" Command="{Binding SaveCommand}"   MinWidth="100" Padding="8,6" Margin="0,0,6,0" />
+                        <Button Content="Удалить"   Command="{Binding DeleteCommand}" MinWidth="90" Padding="8,6" />
+                    </StackPanel>
+                </StackPanel>
+
+                <Border Grid.Column="2" BorderBrush="#E5E7EB" BorderThickness="1" CornerRadius="4" Padding="12">
+                    <StackPanel>
+                        <TextBlock Text="Закрытие заявки" FontWeight="SemiBold" />
+                        <TextBlock Text="Опционально спишите расходник со склада — движение привяжется к этой заявке."
+                                   FontSize="11" Foreground="#6B7280" TextWrapping="Wrap" Margin="0,2,0,8" />
+
+                        <TextBlock Text="ТМЦ" />
+                        <ComboBox ItemsSource="{Binding Items}"
+                                  DisplayMemberPath="Name"
+                                  SelectedItem="{Binding ConsumedItem, UpdateSourceTrigger=PropertyChanged}"
+                                  Padding="6" />
+
+                        <TextBlock Text="Количество" Margin="0,8,0,0" />
+                        <TextBox Text="{Binding ConsumedQuantity, UpdateSourceTrigger=PropertyChanged}" Padding="6" />
+
+                        <Button Content="Закрыть заявку"
+                                Command="{Binding ResolveCommand}"
+                                MinWidth="140" Padding="8,6" Margin="0,12,0,0" />
+
+                        <TextBlock Text="{Binding ErrorMessage}"
+                                   Foreground="#DC2626" Margin="0,8,0,0"
+                                   Visibility="{Binding ErrorMessage, Converter={StaticResource StringToVisibilityConverter}}"
+                                   TextWrapping="Wrap" />
+                        <TextBlock Text="{Binding StatusMessage}"
+                                   Foreground="#047857" Margin="0,8,0,0"
+                                   Visibility="{Binding StatusMessage, Converter={StaticResource StringToVisibilityConverter}}"
+                                   TextWrapping="Wrap" />
+                    </StackPanel>
+                </Border>
+            </Grid>
+        </Border>
+    </Grid>
+</UserControl>

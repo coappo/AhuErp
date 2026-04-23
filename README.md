@@ -135,8 +135,33 @@ mono tools/MigrationGenerator/bin/Debug/MigrationGenerator.exe \
 - Демо-пользователи (пароль `password`): «Иванов Иван Иванович» (Admin), «Петров Пётр Петрович» (Manager), «Сидорова Анна Сергеевна» (Archivist), «Кузнецов Алексей Викторович» (TechSupport), «Орлова Мария Николаевна» (WarehouseManager).
 - Тесты: **+38** — `AuthServiceTests`, `PasswordHasherTests`, `RolePolicyTests`, `InMemoryDocumentRepositoryTests`. Итого 59 зелёных.
 
+## Phase 3 — Warehouse / ТМЦ + IT-Service (Help Desk)
+
+- Модели: `InventoryItem` (Id, Name, `InventoryCategory`, TotalQuantity), `InventoryTransaction` (InventoryItemId, nullable `DocumentId`, QuantityChanged ±, TransactionDate, InitiatorId), `ItTicket` (наследник `Document` через TPH-дискриминатор — `AffectedEquipment`, `ResolutionNotes`).
+- EF6 миграция `20260423131841_AddInventoryAndItTicket`: две новые таблицы + FK `InventoryTransactions.DocumentId → Documents`, `InitiatorId → Employees`, колонки `AffectedEquipment`/`ResolutionNotes` на `Documents` для TPH-подтипа `ItTicket`.
+- `IInventoryService` / `InventoryService.ProcessTransaction(itemId, quantityChange, documentId?, userId)` — атомарно обновляет `TotalQuantity` и записывает движение. Правила: `quantityChange != 0`, списание требует `documentId`, при этом `TotalQuantity + quantityChange >= 0` (иначе `InvalidOperationException`).
+- UI: `WarehouseView` — грид остатков + панель прихода/расхода (расход обязательно привязан к документу из `IDocumentRepository.ListInventoryEligibleDocuments()` — внутренние распоряжения + IT-заявки) + лента последних 20 движений.
+- UI: `ItServiceView` — CRUD `ItTicket`; при закрытии заявки можно опционально списать расходник со склада — списание проходит через `IInventoryService` с `DocumentId = ticket.Id`, т.е. движение ТМЦ всегда связано с документом (IT-заявкой или приказом).
+- Тесты: **+9** юнит-тестов (`InventoryServiceTests`): приход / расход / запрет овердрафта / обязательность документа при списании / нулевой/невалидный инициатор / отсутствующая позиция / граничный нулевой остаток / трассировка `DocumentId` по нескольким движениям. Итого **68/68**.
+
+### Как реализована связка «движение ТМЦ → документ-основание»
+
+```
+InventoryTransaction.DocumentId? ──(FK, ON DELETE NO ACTION)──► Documents.Id
+                                                                   │
+                                                                   ├─ Document         (Incoming / Internal)
+                                                                   ├─ ArchiveRequest   (TPH)
+                                                                   └─ ItTicket         (TPH ← Phase 3)
+```
+
+Любое списание через `InventoryService.ProcessTransaction(..., documentId: X, ...)`:
+- валидирует, что `X != null` и позиция имеет достаточный остаток,
+- уменьшает `InventoryItem.TotalQuantity` на абсолютную величину,
+- добавляет запись `InventoryTransaction { QuantityChanged < 0, DocumentId = X, InitiatorId = currentUser.Id, TransactionDate = now }`.
+
+При закрытии `ItTicket` в UI `ItServiceViewModel.Resolve()` автоматически передаёт `documentId: SelectedTicket.Id`, поэтому любое списание из Help Desk прослеживается до конкретной заявки.
+
 ## Roadmap (следующие фазы)
 
-- Phase 3: «Склад / ТМЦ» (InventoryItem, списания привязанные к документам) + IT-service (Help Desk).
 - Phase 4: «Автопарк» с календарным представлением и бронированиями поверх `FleetService`.
 - Phase 5: Дашборд-аналитика (LiveCharts), экспорт в Excel/Word, аудит и отчётность.

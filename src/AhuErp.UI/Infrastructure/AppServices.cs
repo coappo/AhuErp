@@ -28,8 +28,10 @@ namespace AhuErp.UI.Infrastructure
             // Демо-данные помещаем в уже существующие in-memory репозитории.
             var employees = (InMemoryEmployeeRepository)_provider.GetRequiredService<IEmployeeRepository>();
             var documents = (InMemoryDocumentRepository)_provider.GetRequiredService<IDocumentRepository>();
+            var inventory = (InMemoryInventoryRepository)_provider.GetRequiredService<IInventoryRepository>();
             var hasher = _provider.GetRequiredService<IPasswordHasher>();
             DemoDataSeeder.Seed(employees, documents, hasher);
+            DemoDataSeeder.SeedInventory(inventory);
         }
 
         public static T GetRequiredService<T>() where T : class =>
@@ -43,6 +45,8 @@ namespace AhuErp.UI.Infrastructure
             services.AddSingleton<IDocumentRepository>(new InMemoryDocumentRepository());
             services.AddSingleton<IAuthService, AuthService>();
             services.AddSingleton<ArchiveService>();
+            services.AddSingleton<IInventoryRepository>(new InMemoryInventoryRepository());
+            services.AddSingleton<IInventoryService, InventoryService>();
 
             // ViewModels — transient, чтобы получать свежее состояние при навигации.
             services.AddTransient<LoginViewModel>();
@@ -52,6 +56,7 @@ namespace AhuErp.UI.Infrastructure
             services.AddTransient<ArchiveViewModel>();
             services.AddTransient<ItServiceViewModel>();
             services.AddTransient<FleetViewModel>();
+            services.AddTransient<WarehouseViewModel>();
         }
     }
 }

@@ -16,7 +16,9 @@ namespace AhuErp.Core.Services
 
         public IReadOnlyList<Document> ListByType(DocumentType type)
         {
-            return _documents.Where(d => d.Type == type && !(d is ArchiveRequest))
+            return _documents.Where(d => d.Type == type
+                                         && !(d is ArchiveRequest)
+                                         && !(d is ItTicket))
                              .ToList()
                              .AsReadOnly();
         }
@@ -24,6 +26,20 @@ namespace AhuErp.Core.Services
         public IReadOnlyList<ArchiveRequest> ListArchiveRequests()
         {
             return _documents.OfType<ArchiveRequest>().ToList().AsReadOnly();
+        }
+
+        public IReadOnlyList<ItTicket> ListItTickets()
+        {
+            return _documents.OfType<ItTicket>().ToList().AsReadOnly();
+        }
+
+        public IReadOnlyList<Document> ListInventoryEligibleDocuments()
+        {
+            return _documents.Where(d => d.Type == DocumentType.Internal
+                                         || d.Type == DocumentType.It
+                                         || d is ItTicket)
+                             .ToList()
+                             .AsReadOnly();
         }
 
         public Document GetById(int id) => _documents.FirstOrDefault(d => d.Id == id);

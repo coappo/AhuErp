@@ -34,17 +34,19 @@ namespace AhuErp.UI.ViewModels
                              OfficeViewModel officeVm,
                              ArchiveViewModel archiveVm,
                              ItServiceViewModel itServiceVm,
-                             FleetViewModel fleetVm)
+                             FleetViewModel fleetVm,
+                             WarehouseViewModel warehouseVm)
         {
             _auth = auth ?? throw new ArgumentNullException(nameof(auth));
 
             NavigationItems = new ObservableCollection<NavigationItem>
             {
-                new NavigationItem("Дашборд",   RolePolicy.Dashboard, dashboardVm),
-                new NavigationItem("Канцелярия", RolePolicy.Office,   officeVm),
-                new NavigationItem("Архив",      RolePolicy.Archive,  archiveVm),
+                new NavigationItem("Дашборд",    RolePolicy.Dashboard, dashboardVm),
+                new NavigationItem("Канцелярия", RolePolicy.Office,    officeVm),
+                new NavigationItem("Архив",      RolePolicy.Archive,   archiveVm),
+                new NavigationItem("Склад / ТМЦ", RolePolicy.Warehouse, warehouseVm),
                 new NavigationItem("IT-служба",  RolePolicy.ItService, itServiceVm),
-                new NavigationItem("Автопарк",   RolePolicy.Fleet,    fleetVm),
+                new NavigationItem("Автопарк",   RolePolicy.Fleet,     fleetVm),
             };
 
             ApplyRolePolicy();

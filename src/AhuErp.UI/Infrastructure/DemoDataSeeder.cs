@@ -100,6 +100,46 @@ namespace AhuErp.UI.Infrastructure
             };
             archive.InitializeDeadline(now.AddDays(-25));
             documents.Add(archive);
+
+            documents.Add(new ItTicket
+            {
+                Title = "Не печатает принтер HP LaserJet в каб. 214",
+                AffectedEquipment = "HP LaserJet Pro M404",
+                CreationDate = now.AddDays(-2),
+                Deadline = now.AddDays(3),
+                Status = DocumentStatus.InProgress,
+                AssignedEmployeeId = tech.Id
+            });
+        }
+
+        public static void SeedInventory(InMemoryInventoryRepository inventory)
+        {
+            if (inventory == null) throw new ArgumentNullException(nameof(inventory));
+
+            inventory.AddItem(new InventoryItem
+            {
+                Name = "Бумага А4 500 л.",
+                Category = InventoryCategory.Stationery,
+                TotalQuantity = 40
+            });
+            inventory.AddItem(new InventoryItem
+            {
+                Name = "Ручка шариковая синяя",
+                Category = InventoryCategory.Stationery,
+                TotalQuantity = 120
+            });
+            inventory.AddItem(new InventoryItem
+            {
+                Name = "Картридж HP 59A",
+                Category = InventoryCategory.IT_Equipment,
+                TotalQuantity = 6
+            });
+            inventory.AddItem(new InventoryItem
+            {
+                Name = "Жидкость для мытья полов 5 л",
+                Category = InventoryCategory.Cleaning_Supplies,
+                TotalQuantity = 8
+            });
         }
     }
 }

@@ -23,7 +23,10 @@
             <views:ArchiveView />
         </DataTemplate>
         <DataTemplate DataType="{x:Type vm:ItServiceViewModel}">
-            <views:PlaceholderView />
+            <views:ItServiceView />
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type vm:WarehouseViewModel}">
+            <views:WarehouseView />
         </DataTemplate>
         <DataTemplate DataType="{x:Type vm:FleetViewModel}">
             <views:PlaceholderView />

@@ -11,6 +11,11 @@ namespace AhuErp.Core.Services
     {
         IReadOnlyList<Document> ListByType(DocumentType type);
         IReadOnlyList<ArchiveRequest> ListArchiveRequests();
+        IReadOnlyList<ItTicket> ListItTickets();
+
+        /// <summary>Документы-основания для списания ТМЦ: внутренние распоряжения и IT-заявки.</summary>
+        IReadOnlyList<Document> ListInventoryEligibleDocuments();
+
         Document GetById(int id);
         void Add(Document document);
         void Update(Document document);

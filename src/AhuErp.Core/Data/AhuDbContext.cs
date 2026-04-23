@@ -23,8 +23,11 @@ namespace AhuErp.Core.Data
         public virtual DbSet<Employee> Employees { get; set; }
         public virtual DbSet<Document> Documents { get; set; }
         public virtual DbSet<ArchiveRequest> ArchiveRequests { get; set; }
+        public virtual DbSet<ItTicket> ItTickets { get; set; }
         public virtual DbSet<Vehicle> Vehicles { get; set; }
         public virtual DbSet<VehicleTrip> VehicleTrips { get; set; }
+        public virtual DbSet<InventoryItem> InventoryItems { get; set; }
+        public virtual DbSet<InventoryTransaction> InventoryTransactions { get; set; }
 
         protected override void OnModelCreating(DbModelBuilder modelBuilder)
         {
@@ -42,6 +45,11 @@ namespace AhuErp.Core.Data
                 .Map<ArchiveRequest>(m =>
                 {
                     m.Requires("DocumentKind").HasValue("ArchiveRequest");
+                    m.ToTable("Documents");
+                })
+                .Map<ItTicket>(m =>
+                {
+                    m.Requires("DocumentKind").HasValue("ItTicket");
                     m.ToTable("Documents");
                 });
 
@@ -67,6 +75,30 @@ namespace AhuErp.Core.Data
                 .HasOptional(t => t.Document)
                 .WithMany(d => d.VehicleTrips)
                 .HasForeignKey(t => t.DocumentId)
+                .WillCascadeOnDelete(false);
+
+            modelBuilder.Entity<InventoryItem>()
+                .ToTable("InventoryItems");
+
+            modelBuilder.Entity<InventoryTransaction>()
+                .ToTable("InventoryTransactions");
+
+            modelBuilder.Entity<InventoryTransaction>()
+                .HasRequired(t => t.InventoryItem)
+                .WithMany(i => i.Transactions)
+                .HasForeignKey(t => t.InventoryItemId)
+                .WillCascadeOnDelete(true);
+
+            modelBuilder.Entity<InventoryTransaction>()
+                .HasOptional(t => t.Document)
+                .WithMany()
+                .HasForeignKey(t => t.DocumentId)
+                .WillCascadeOnDelete(false);
+
+            modelBuilder.Entity<InventoryTransaction>()
+                .HasRequired(t => t.Initiator)
+                .WithMany()
+                .HasForeignKey(t => t.InitiatorId)
                 .WillCascadeOnDelete(false);
 
             base.OnModelCreating(modelBuilder);
