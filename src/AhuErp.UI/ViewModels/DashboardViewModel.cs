@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using AhuErp.Core.Models;
@@ -53,6 +54,9 @@ namespace AhuErp.UI.ViewModels
         [ObservableProperty]
         private string[] inventoryCategoryLabels = System.Array.Empty<string>();
 
+        [ObservableProperty]
+        private string errorMessage;
+
         public DashboardViewModel(IDocumentRepository documents,
                                   IInventoryRepository inventory,
                                   IVehicleRepository vehicles)
@@ -71,11 +75,38 @@ namespace AhuErp.UI.ViewModels
         private async Task RefreshAsync()
         {
             IsLoading = true;
+            ErrorMessage = null;
             try
             {
-                var snapshot = await Task.Run(() => ComputeSnapshot()).ConfigureAwait(true);
+                // Снимаем данные на UI-потоке: in-memory репозитории держат не-потокобезопасные
+                // List<T>, и перечисление из пула потоков конфликтовало бы с записями из UI
+                // (InvalidOperationException "Collection was modified during enumeration").
+                // Каждый List*() уже возвращает свежую копию, поэтому достаточно вызвать их здесь.
+                var rawDocs = new List<Document>();
+                rawDocs.AddRange(_documents.ListByType(DocumentType.Office));
+                rawDocs.AddRange(_documents.ListByType(DocumentType.Incoming));
+                rawDocs.AddRange(_documents.ListByType(DocumentType.Internal));
+                rawDocs.AddRange(_documents.ListByType(DocumentType.Archive));
+                rawDocs.AddRange(_documents.ListByType(DocumentType.It));
+                rawDocs.AddRange(_documents.ListByType(DocumentType.Fleet));
+                rawDocs.AddRange(_documents.ListByType(DocumentType.ArchiveRequest));
+                rawDocs.AddRange(_documents.ListByType(DocumentType.General));
+                rawDocs.AddRange(_documents.ListArchiveRequests());
+                rawDocs.AddRange(_documents.ListItTickets());
+
+                var items = _inventory.ListItems().ToList();
+                var trips = _vehicles.ListVehicles()
+                    .SelectMany(v => _vehicles.ListTrips(v.Id))
+                    .ToList();
+
+                var snapshot = await Task.Run(() => ComputeSnapshot(rawDocs, items, trips))
+                    .ConfigureAwait(true);
                 ApplySnapshot(snapshot);
                 LastRefreshedDisplay = $"Обновлено: {DateTime.Now:HH:mm:ss}";
+            }
+            catch (Exception ex)
+            {
+                ErrorMessage = $"Не удалось обновить дашборд: {ex.Message}";
             }
             finally
             {
@@ -83,24 +114,17 @@ namespace AhuErp.UI.ViewModels
             }
         }
 
-        private DashboardSnapshot ComputeSnapshot()
+        private DashboardSnapshot ComputeSnapshot(
+            IReadOnlyList<Document> rawDocuments,
+            IReadOnlyList<InventoryItem> items,
+            IReadOnlyList<VehicleTrip> trips)
         {
             var now = DateTime.Now;
 
-            var allDocuments =
-                _documents.ListByType(DocumentType.Office)
-                    .Concat(_documents.ListByType(DocumentType.Incoming))
-                    .Concat(_documents.ListByType(DocumentType.Internal))
-                    .Concat(_documents.ListByType(DocumentType.Archive))
-                    .Concat(_documents.ListByType(DocumentType.It))
-                    .Concat(_documents.ListByType(DocumentType.Fleet))
-                    .Concat(_documents.ListByType(DocumentType.ArchiveRequest))
-                    .Concat(_documents.ListByType(DocumentType.General))
-                    .Concat(_documents.ListArchiveRequests().Cast<Document>())
-                    .Concat(_documents.ListItTickets().Cast<Document>())
-                    .GroupBy(d => d.Id)
-                    .Select(g => g.First())
-                    .ToList();
+            var allDocuments = rawDocuments
+                .GroupBy(d => d.Id)
+                .Select(g => g.First())
+                .ToList();
 
             var overdueAll = allDocuments.Count(d => d.IsOverdue(now));
             var dueSoon = allDocuments.Count(d =>
@@ -109,15 +133,9 @@ namespace AhuErp.UI.ViewModels
                 && d.Deadline >= now
                 && d.Deadline <= now.AddDays(3));
 
-            var archive = _documents.ListArchiveRequests();
-            var overdueArchive = archive.Count(d => d.IsOverdue(now));
+            var overdueArchive = allDocuments.OfType<ArchiveRequest>().Count(d => d.IsOverdue(now));
 
-            var items = _inventory.ListItems();
             var lowStock = items.Count(i => i.TotalQuantity < LowStockThreshold);
-
-            var trips = _vehicles.ListVehicles()
-                .SelectMany(v => _vehicles.ListTrips(v.Id))
-                .ToList();
             var onMission = trips.Count(t => t.StartDate <= now && t.EndDate > now);
 
             var statusGroups = allDocuments

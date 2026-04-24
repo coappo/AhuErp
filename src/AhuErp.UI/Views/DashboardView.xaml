@@ -12,6 +12,7 @@
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
@@ -26,8 +27,14 @@
                        Visibility="{Binding IsLoading, Converter={StaticResource BooleanToVisibilityConverter}}" />
         </StackPanel>
 
+        <Border Grid.Row="1" Background="#FEE2E2" BorderBrush="#DC2626" BorderThickness="1"
+                CornerRadius="4" Padding="10,6" Margin="0,0,0,12"
+                Visibility="{Binding ErrorMessage, Converter={StaticResource StringToVisibilityConverter}}">
+            <TextBlock Text="{Binding ErrorMessage}" Foreground="#991B1B" TextWrapping="Wrap" />
+        </Border>
+
         <!-- KPI Cards -->
-        <UniformGrid Grid.Row="1" Columns="5" Rows="1" Margin="0,0,0,16">
+        <UniformGrid Grid.Row="2" Columns="5" Rows="1" Margin="0,0,0,16">
             <Border Background="White" CornerRadius="4" Padding="16" Margin="0,0,8,0">
                 <StackPanel>
                     <TextBlock Text="Просроченные архив. заявки" Foreground="#6B7280" FontSize="12" />
@@ -61,7 +68,7 @@
         </UniformGrid>
 
         <!-- Charts -->
-        <Grid Grid.Row="2">
+        <Grid Grid.Row="3">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*" />
                 <ColumnDefinition Width="16" />
