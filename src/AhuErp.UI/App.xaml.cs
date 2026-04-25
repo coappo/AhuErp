@@ -57,15 +57,14 @@ namespace AhuErp.UI
             // ViewModel-ов через DI), оставлять процесс «живым» нельзя: при
             // ShutdownMode.OnLastWindowClose ни одного окна нет — получится
             // невидимый зомби. Поэтому после показа стека сразу глушим процесс.
+            // Помечаем обработанным в обоих случаях — иначе исключение «всплывёт»
+            // в AppDomain.UnhandledException и пользователь увидит вторую модалку
+            // про то же самое падение.
+            e.Handled = true;
             if (Current?.MainWindow == null)
             {
                 Current?.Shutdown(1);
-                return;
             }
-
-            // На штатной работе: помечаем обработанным, чтобы один сбой в кнопке
-            // не убивал всё приложение.
-            e.Handled = true;
         }
 
         private static void OnDomainUnhandledException(object sender, UnhandledExceptionEventArgs e)
