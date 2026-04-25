@@ -44,7 +44,24 @@ namespace AhuErp.UI.ViewModels
 
             if (!_auth.TryLogin(FullName, password))
             {
-                ErrorMessage = "Неверное ФИО или пароль.";
+                // Разделение причин помогает локализовать проблему при первом запуске
+                // на новой БД: «не найден» — обычно опечатка/лишние пробелы в ФИО,
+                // «неверный пароль» — раскладка/CapsLock либо реально не тот пароль.
+                switch (_auth.LastFailureReason)
+                {
+                    case LoginFailureReason.EmptyInput:
+                        ErrorMessage = "Введите ФИО и пароль.";
+                        break;
+                    case LoginFailureReason.UserNotFound:
+                        ErrorMessage = "Пользователь с таким ФИО не найден.";
+                        break;
+                    case LoginFailureReason.WrongPassword:
+                        ErrorMessage = "Неверный пароль.";
+                        break;
+                    default:
+                        ErrorMessage = "Неверное ФИО или пароль.";
+                        break;
+                }
                 IsAuthenticated = false;
                 return;
             }
