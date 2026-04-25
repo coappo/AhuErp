@@ -45,8 +45,20 @@ namespace AhuErp.UI
         private static void OnDispatcherUnhandledException(object sender, DispatcherUnhandledExceptionEventArgs e)
         {
             ShowFatal(e.Exception, "UI-поток");
-            // Помечаем обработанным, чтобы пользователь мог хотя бы прочитать
-            // сообщение, прежде чем процесс закроется (Logout / закрытие окна).
+
+            // Если падение случилось ДО показа главного окна (например, ошибка
+            // подключения к SQL Server в EfDataSeeder или ошибка резолва
+            // ViewModel-ов через DI), оставлять процесс «живым» нельзя: при
+            // ShutdownMode.OnLastWindowClose ни одного окна нет — получится
+            // невидимый зомби. Поэтому после показа стека сразу глушим процесс.
+            if (Current?.MainWindow == null)
+            {
+                Current?.Shutdown(1);
+                return;
+            }
+
+            // На штатной работе: помечаем обработанным, чтобы один сбой в кнопке
+            // не убивал всё приложение.
             e.Handled = true;
         }
 
