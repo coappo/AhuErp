@@ -60,5 +60,39 @@ namespace AhuErp.Core.Services
         /// в каждом деле за период, с указанием срока хранения и отдела.
         /// </summary>
         void ExportNomenclatureAnalyticsReport(DateTime from, DateTime to, string filePath);
+
+        // ------------------------------------------------------------
+        // Phase 12 — пакет регламентированных отчётов СЭД
+        // ------------------------------------------------------------
+
+        /// <summary>
+        /// Реестр отправки исходящих за период (XLSX). Включает рег. номер,
+        /// дату, тему, корреспондента, способ отправки.
+        /// </summary>
+        void ExportOutgoingDispatchRegistry(DateTime from, DateTime to, string filePath);
+
+        /// <summary>
+        /// Опись дела: формальный DOCX по перечню документов, помещённых в
+        /// номенклатурное дело (приложение № 10 Правил делопроизводства).
+        /// </summary>
+        void GenerateCaseInventory(int nomenclatureCaseId, string filePath);
+
+        /// <summary>
+        /// Отчёт по парку: пробег, простой, заявки за период (XLSX).
+        /// </summary>
+        void ExportFleetReport(DateTime from, DateTime to, string filePath);
+
+        /// <summary>
+        /// Отчёт по складу: остатки на начало/конец периода, оборот
+        /// (приход/расход) за период (XLSX).
+        /// </summary>
+        void ExportInventoryTurnoverReport(DateTime from, DateTime to, string filePath);
+
+        /// <summary>
+        /// Полная история событий документа (PDF). Включает все записи
+        /// журнала аудита для этого <see cref="Models.Document"/>:
+        /// действие, актор, время, детали, хэш цепочки.
+        /// </summary>
+        void ExportDocumentAuditTrail(int documentId, string filePath);
     }
 }
