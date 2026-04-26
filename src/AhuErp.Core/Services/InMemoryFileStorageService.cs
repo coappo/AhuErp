@@ -11,7 +11,8 @@ namespace AhuErp.Core.Services
     /// </summary>
     public sealed class InMemoryFileStorageService : IFileStorageService
     {
-        private static readonly Regex UnsafeChars = new Regex(@"[^A-Za-zА-Яа-я0-9._-]+", RegexOptions.Compiled);
+        // ёЁ нужно перечислить явно — они вне диапазонов А-Я/а-я.
+        private static readonly Regex UnsafeChars = new Regex(@"[^A-Za-zА-Яа-яЁё0-9._-]+", RegexOptions.Compiled);
         private readonly Dictionary<string, byte[]> _files = new Dictionary<string, byte[]>(StringComparer.OrdinalIgnoreCase);
 
         public string Store(Stream content, string registrationNumber, int version, string fileName)

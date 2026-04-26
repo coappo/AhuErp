@@ -13,7 +13,9 @@ namespace AhuErp.Core.Services
     {
         // Запрещённые в Windows-имени файла символы плюс пробел/двоеточие/слэши,
         // которые встречаются в регистрационных номерах вида АХУ-01/2026-00037.
-        private static readonly Regex UnsafeChars = new Regex(@"[^A-Za-zА-Яа-я0-9._-]+", RegexOptions.Compiled);
+        // Включаем ёЁ явно: они вне А-Я/а-я и иначе схлопывались бы в '_',
+        // искажая имена вроде «Отчёт», «Учёт», «Алёна».
+        private static readonly Regex UnsafeChars = new Regex(@"[^A-Za-zА-Яа-яЁё0-9._-]+", RegexOptions.Compiled);
 
         private readonly string _root;
 
