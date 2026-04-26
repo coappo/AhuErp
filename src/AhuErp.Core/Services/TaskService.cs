@@ -170,6 +170,10 @@ namespace AhuErp.Core.Services
         public ExecutionDisciplineReport BuildDisciplineReport(DateTime from, DateTime to)
         {
             if (to < from) throw new ArgumentException("Дата окончания периода раньше начала.");
+            // Просрочка определяется относительно текущего момента (а не конца
+            // отчётного периода): иначе ещё не наступившие сроки в будущем
+            // ошибочно учитывались бы как пропущенные.
+            var now = DateTime.UtcNow;
             var inRange = _tasks.ListAll()
                 .Where(t => t.CreatedAt >= from && t.CreatedAt <= to)
                 .ToList();
@@ -182,7 +186,7 @@ namespace AhuErp.Core.Services
                                           && t.CompletedAt.Value > t.Deadline);
             int overdue = inRange.Count(t => t.Status != DocumentTaskStatus.Completed
                                              && t.Status != DocumentTaskStatus.Cancelled
-                                             && t.Deadline < to);
+                                             && t.Deadline < now);
             int inProgress = inRange.Count(t => t.Status == DocumentTaskStatus.InProgress
                                                 || t.Status == DocumentTaskStatus.New
                                                 || t.Status == DocumentTaskStatus.OnReview);
@@ -202,7 +206,7 @@ namespace AhuErp.Core.Services
                                                  && t.CompletedAt.Value > t.Deadline),
                     Overdue = g.Count(t => t.Status != DocumentTaskStatus.Completed
                                            && t.Status != DocumentTaskStatus.Cancelled
-                                           && t.Deadline < to)
+                                           && t.Deadline < now)
                 })
                 .OrderBy(r => r.ExecutorName)
                 .ToList();

@@ -47,6 +47,11 @@
                     <TextBlock Text="{Binding ErrorMessage}" Foreground="#991B1B" TextWrapping="Wrap" />
                 </Border>
 
+                <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Margin="0,8,0,0">
+                    <Button Content="Сохранить" Command="{Binding SaveCommand}" MinWidth="100" Padding="8,4" Margin="0,0,6,0" />
+                    <Button Content="Зарегистрировать" Command="{Binding RegisterCommand}" MinWidth="140" Padding="8,4" />
+                </StackPanel>
+
                 <TabControl>
                     <TabItem Header="1. Реквизиты">
                         <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="12">
@@ -253,11 +258,6 @@
                         </DockPanel>
                     </TabItem>
                 </TabControl>
-
-                <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Margin="0,8,0,0">
-                    <Button Content="Сохранить" Command="{Binding SaveCommand}" MinWidth="100" Padding="8,4" Margin="0,0,6,0" />
-                    <Button Content="Зарегистрировать" Command="{Binding RegisterCommand}" MinWidth="140" Padding="8,4" />
-                </StackPanel>
             </DockPanel>
         </Border>
     </Grid>

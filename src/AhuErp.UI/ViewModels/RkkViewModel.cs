@@ -69,6 +69,7 @@ namespace AhuErp.UI.ViewModels
         private DocumentAccessLevel selectedAccessLevel = DocumentAccessLevel.Internal;
 
         [ObservableProperty]
+        [NotifyCanExecuteChangedFor(nameof(SaveCommand))]
         private string draftTitle;
 
         [ObservableProperty]
@@ -81,12 +82,14 @@ namespace AhuErp.UI.ViewModels
         private DateTime draftDeadline = DateTime.Today.AddDays(7);
 
         [ObservableProperty]
+        [NotifyCanExecuteChangedFor(nameof(AddTaskCommand))]
         private string newTaskDescription;
 
         [ObservableProperty]
         private DateTime newTaskDeadline = DateTime.Today.AddDays(3);
 
         [ObservableProperty]
+        [NotifyCanExecuteChangedFor(nameof(AddTaskCommand))]
         private int newTaskExecutorId;
 
         [ObservableProperty]
