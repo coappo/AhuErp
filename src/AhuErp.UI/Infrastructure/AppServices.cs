@@ -76,6 +76,14 @@ namespace AhuErp.UI.Infrastructure
             services.AddSingleton<IWorkflowService, WorkflowService>();
             services.AddSingleton<ITaskService, TaskService>();
 
+            // Phase 11 — оргструктура и замещения. Должны быть зарегистрированы
+            // ДО TaskService/ApprovalService, т.к. оба перенаправляют исполнителя
+            // через ISubstitutionService при наличии активного замещения.
+            services.AddSingleton<ISubstitutionRepository, EfSubstitutionRepository>();
+            services.AddSingleton<ISubstitutionService, SubstitutionService>();
+            services.AddSingleton<IDelegationRepository, EfDelegationRepository>();
+            services.AddSingleton<IDelegationService, DelegationService>();
+
             services.AddSingleton<IApprovalRepository, EfApprovalRepository>();
             services.AddSingleton<IApprovalService, ApprovalService>();
 
@@ -104,6 +112,8 @@ namespace AhuErp.UI.Infrastructure
             services.AddTransient<AuditJournalViewModel>();
             services.AddTransient<JournalViewModel>();
             services.AddTransient<SearchViewModel>();
+            services.AddTransient<OrgStructureViewModel>();
+            services.AddTransient<SubstitutionsViewModel>();
         }
     }
 }

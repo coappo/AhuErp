@@ -42,7 +42,9 @@ namespace AhuErp.UI.ViewModels
                              NomenclatureViewModel nomenclatureVm,
                              AuditJournalViewModel auditJournalVm,
                              JournalViewModel journalVm,
-                             SearchViewModel searchVm)
+                             SearchViewModel searchVm,
+                             OrgStructureViewModel orgStructureVm,
+                             SubstitutionsViewModel substitutionsVm)
         {
             _auth = auth ?? throw new ArgumentNullException(nameof(auth));
 
@@ -59,6 +61,8 @@ namespace AhuErp.UI.ViewModels
                 new NavigationItem("Номенклатура дел", RolePolicy.Nomenclature, nomenclatureVm),
                 new NavigationItem("Журналы регистрации", RolePolicy.Journals, journalVm),
                 new NavigationItem("Поиск", RolePolicy.Search, searchVm),
+                new NavigationItem("Оргструктура", RolePolicy.OrgStructure, orgStructureVm),
+                new NavigationItem("Замещения", RolePolicy.Substitutions, substitutionsVm),
                 new NavigationItem("Журнал аудита", RolePolicy.AuditJournal, auditJournalVm),
             };
 
