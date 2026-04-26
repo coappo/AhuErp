@@ -42,7 +42,7 @@ namespace AhuErp.Tests
             Assert.NotNull(n);
             Assert.Equal(NotificationChannel.InApp, n.Channel);
             Assert.Single(_repo.ListByRecipient(2, unreadOnly: false));
-            Assert.Equal(1, _audit.Query(new AuditQueryFilter { ActionType = AuditActionType.NotificationSent }).Count);
+            Assert.Single(_audit.Query(new AuditQueryFilter { ActionType = AuditActionType.NotificationSent }));
         }
 
         [Fact]
@@ -73,8 +73,12 @@ namespace AhuErp.Tests
             });
 
             var n = _service.Create(2, NotificationKind.TaskAssigned, "Тема", "Тело");
-            Assert.Null(n); // in-app не пишем
-            Assert.Empty(_repo.ListByRecipient(2, unreadOnly: false));
+            Assert.Null(n); // в ленту получателя не возвращаем
+            // Запись хранится для аудита и для идемпотентности TickReminders,
+            // но помечена прочитанной — счётчик непрочитанных не растёт.
+            Assert.Single(_repo.ListByRecipient(2, unreadOnly: false));
+            Assert.Empty(_repo.ListByRecipient(2, unreadOnly: true));
+            Assert.Equal(0, _service.CountUnread(2));
             Assert.Single(_email.Sent);
             Assert.Equal("petrov@bmr", _email.Sent[0].To);
         }
@@ -215,6 +219,39 @@ namespace AhuErp.Tests
 
             _service.TickReminders(DateTime.Now);
             Assert.Empty(_repo.ListByRelatedTask(task.Id, NotificationKind.TaskDeadlineSoon));
+        }
+
+        [Fact]
+        public void TickReminders_email_only_executor_does_not_spam_emails()
+        {
+            // Регрессия по Devin Review #2: при Channel=Email раньше запись
+            // не сохранялась, дедупликация через ListByRelatedTask пропускала
+            // её и каждый тик слал письмо заново.
+            _repo.SetPreference(new NotificationPreference
+            {
+                EmployeeId = 2,
+                Kind = NotificationKind.TaskOverdue,
+                Channel = NotificationChannel.Email,
+                IsEnabled = true,
+            });
+
+            var task = _tasks.AddTask(new DocumentTask
+            {
+                DocumentId = 1,
+                AuthorId = 1,
+                ExecutorId = 2,
+                Description = "x",
+                Deadline = DateTime.Now.AddHours(-1),
+                Status = DocumentTaskStatus.InProgress,
+                CreatedAt = DateTime.Now.AddDays(-1),
+            });
+
+            _service.TickReminders(DateTime.Now);
+            _service.TickReminders(DateTime.Now);
+            _service.TickReminders(DateTime.Now);
+
+            Assert.Single(_email.Sent);
+            Assert.Single(_repo.ListByRelatedTask(task.Id, NotificationKind.TaskOverdue));
         }
 
         [Fact]

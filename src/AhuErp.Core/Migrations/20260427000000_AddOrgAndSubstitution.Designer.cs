@@ -13,7 +13,7 @@ namespace AhuErp.Core.Migrations
 
         string IMigrationMetadata.Id
         {
-            get { return "202604270000000_AddOrgAndSubstitution"; }
+            get { return "20260427000000_AddOrgAndSubstitution"; }
         }
 
         string IMigrationMetadata.Source

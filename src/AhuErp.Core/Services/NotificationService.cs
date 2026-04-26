@@ -8,8 +8,24 @@ namespace AhuErp.Core.Services
     /// Реализация <see cref="INotificationService"/>. Учитывает
     /// <see cref="NotificationPreference"/> для каждого получателя:
     /// если <see cref="NotificationPreference.IsEnabled"/> = false — запись не
-    /// создаётся; если канал = Email — in-app не пишется, только e-mail;
-    /// если канал = Both — in-app + e-mail.
+    /// создаётся вовсе. В остальных случаях запись Notification ВСЕГДА
+    /// сохраняется — её <see cref="Notification.Channel"/> фиксирует, как
+    /// именно сообщение было/будет доставлено:
+    /// <list type="bullet">
+    ///   <item><description><see cref="NotificationChannel.InApp"/> —
+    ///     показывается в ленте «Моего рабочего стола», письмо не
+    ///     отправляется.</description></item>
+    ///   <item><description><see cref="NotificationChannel.Email"/> —
+    ///     отправляется e-mail; запись помечается как уже прочитанная,
+    ///     поэтому не висит в счётчике (нужна для дедупликации
+    ///     <see cref="TickReminders"/>).</description></item>
+    ///   <item><description><see cref="NotificationChannel.Both"/> —
+    ///     in-app + e-mail.</description></item>
+    /// </list>
+    /// Запись нужна также для идемпотентности
+    /// <see cref="TickReminders"/>: проверка
+    /// <see cref="INotificationRepository.ListByRelatedTask"/> работает
+    /// независимо от выбранного канала.
     /// </summary>
     public sealed class NotificationService : INotificationService
     {
@@ -48,27 +64,27 @@ namespace AhuErp.Core.Services
             }
 
             var channel = pref?.Channel ?? NotificationChannel.InApp;
-            Notification stored = null;
+            var now = DateTime.Now;
 
-            // In-app пишем при InApp/Both.
-            if (channel == NotificationChannel.InApp || channel == NotificationChannel.Both)
+            // Сохраняем запись ВСЕГДА — это нужно и для аудита, и для
+            // идемпотентности TickReminders. Email-only записи помечаем как
+            // прочитанные, чтобы не светиться в счётчике непрочитанных.
+            var stored = _repo.Add(new Notification
             {
-                stored = _repo.Add(new Notification
-                {
-                    RecipientId = recipientId,
-                    Kind = kind,
-                    Title = title,
-                    Body = body,
-                    RelatedDocumentId = docId,
-                    RelatedTaskId = taskId,
-                    RelatedApprovalId = approvalId,
-                    CreatedAt = DateTime.Now,
-                    Channel = channel,
-                });
-                _audit.Record(AuditActionType.NotificationSent, nameof(Notification),
-                    stored.Id, recipientId,
-                    newValues: $"Kind={kind}; Channel={channel}");
-            }
+                RecipientId = recipientId,
+                Kind = kind,
+                Title = title,
+                Body = body,
+                RelatedDocumentId = docId,
+                RelatedTaskId = taskId,
+                RelatedApprovalId = approvalId,
+                CreatedAt = now,
+                ReadAt = channel == NotificationChannel.Email ? (DateTime?)now : null,
+                Channel = channel,
+            });
+            _audit.Record(AuditActionType.NotificationSent, nameof(Notification),
+                stored.Id, recipientId,
+                newValues: $"Kind={kind}; Channel={channel}");
 
             // E-mail отправляем при Email/Both, если есть адрес и шлюз.
             if ((channel == NotificationChannel.Email || channel == NotificationChannel.Both)
@@ -82,11 +98,8 @@ namespace AhuErp.Core.Services
                     try
                     {
                         _email.Send(addr, title, body);
-                        if (stored != null)
-                        {
-                            stored.SentToEmailAt = DateTime.Now;
-                            _repo.Update(stored);
-                        }
+                        stored.SentToEmailAt = DateTime.Now;
+                        _repo.Update(stored);
                     }
                     catch
                     {
@@ -95,7 +108,7 @@ namespace AhuErp.Core.Services
                 }
             }
 
-            return stored;
+            return channel == NotificationChannel.Email ? null : stored;
         }
 
         public void MarkRead(int notificationId, int actorId)

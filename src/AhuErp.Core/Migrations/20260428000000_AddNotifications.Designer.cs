@@ -13,7 +13,7 @@ namespace AhuErp.Core.Migrations
 
         string IMigrationMetadata.Id
         {
-            get { return "202604280000000_AddNotifications"; }
+            get { return "20260428000000_AddNotifications"; }
         }
 
         string IMigrationMetadata.Source
