@@ -23,7 +23,7 @@ namespace AhuErp.Core.Migrations
                     SourceContentHash = c.String(maxLength: 64),
                 })
                 .PrimaryKey(t => t.Id)
-                .ForeignKey("dbo.DocumentAttachments", t => t.AttachmentId, cascadeDelete: false)
+                .ForeignKey("dbo.DocumentAttachments", t => t.AttachmentId, cascadeDelete: true)
                 .Index(t => t.AttachmentId, unique: true, name: "IX_AttachmentTextIndices_Attachment")
                 .Index(t => t.DocumentId, name: "IX_AttachmentTextIndices_Document");
 

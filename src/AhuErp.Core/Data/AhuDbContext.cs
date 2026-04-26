@@ -292,11 +292,14 @@ namespace AhuErp.Core.Data
             modelBuilder.Entity<AttachmentTextIndex>()
                 .Property(x => x.ExtractedText)
                 .HasColumnType("nvarchar(max)");
+            // Каскадное удаление: Document → DocumentAttachment (cascade) →
+            // AttachmentTextIndex (cascade). Иначе FK на индексе блокирует
+            // удаление документа с проиндексированными вложениями.
             modelBuilder.Entity<AttachmentTextIndex>()
                 .HasRequired(x => x.Attachment)
                 .WithMany()
                 .HasForeignKey(x => x.AttachmentId)
-                .WillCascadeOnDelete(false);
+                .WillCascadeOnDelete(true);
 
             modelBuilder.Entity<SavedSearch>().ToTable("SavedSearches");
             modelBuilder.Entity<SavedSearch>()
