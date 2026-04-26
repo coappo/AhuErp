@@ -7,14 +7,28 @@ using System.Text;
 namespace AhuErp.Core.Reports
 {
     /// <summary>
-    /// Минимальный самостоятельный PDF-писатель (PDF 1.4): один или несколько
-    /// страниц A4 с текстом моноширинным шрифтом Courier (стандартный
+    /// Минимальный самостоятельный PDF-писатель (PDF 1.4). Пишет одну или
+    /// несколько страниц A4 моноширинным шрифтом Courier (стандартный
     /// «Type 1» из 14 base fonts — не требует встраивания файла шрифта).
-    /// Достаточно для регламентированного аудит-журнала; рендерится в любом
-    /// PDF-ридере.
-    ///
     /// Реализован вручную, без PdfSharp/MigraDoc, потому что эти пакеты
     /// зависят от Windows GDI+ и падают в mono/Linux-CI.
+    ///
+    /// <para>
+    /// <b>Ограничение по кириллице.</b> Стандартные base14-шрифты
+    /// (Courier/Helvetica/Times) не содержат кириллических глифов: даже с
+    /// <c>/Differences</c> или <c>/Encoding /WinAnsiEncoding</c> символы 0x80–0xFF
+    /// отрисовываются «пробелом» или мусором. Поэтому весь входной текст
+    /// транслитерируется в латиницу (ГОСТ 7.79-2000 system A) перед записью
+    /// в поток. Для регламентированной аудит-выгрузки документа это
+    /// приемлемо: hash-цепочка, рег-номер, временные метки и тип действия
+    /// читаются однозначно. Для полноценного UI-PDF лучше использовать
+    /// MigraDoc на Windows-стенде.
+    /// </para>
+    ///
+    /// <para>
+    /// Кодировки выровнены: декларация шрифта <c>/WinAnsiEncoding</c> (CP-1252)
+    /// и поток содержимого пишется тем же CP-1252 — несоответствия нет.
+    /// </para>
     /// </summary>
     public sealed class MinimalPdfWriter
     {
@@ -57,6 +71,11 @@ namespace AhuErp.Core.Reports
             int fontObj = 3;
             int firstPageObj = 4;
 
+            // CP-1252 (WinAnsi) — соответствует декларации /Encoding /WinAnsiEncoding
+            // в объекте шрифта. После транслитерации все символы — ASCII, так что
+            // CP-1252 покрывает их без потерь.
+            var streamEncoding = WinAnsiEncoding();
+
             using (var fs = new FileStream(filePath, FileMode.Create, FileAccess.Write))
             using (var bw = new BinaryWriter(fs, Encoding.ASCII))
             {
@@ -64,7 +83,10 @@ namespace AhuErp.Core.Reports
                 void WriteAscii(string s) => bw.Write(Encoding.ASCII.GetBytes(s));
 
                 WriteAscii("%PDF-1.4\n");
-                WriteAscii("%\u00E2\u00E3\u00CF\u00D3\n");
+                // PDF spec §7.5.2: бинарный маркер — хотя бы 4 байта со значениями ≥128,
+                // чтобы файл-передача не определила PDF как text/ascii. Пишем как сырые
+                // байты; через Encoding.ASCII символы 0x80+ заменились бы на '?'.
+                bw.Write(new byte[] { 0x25, 0xE2, 0xE3, 0xCF, 0xD3, 0x0A });
 
                 // 1: Catalog
                 offsets.Add(bw.BaseStream.Position);
@@ -80,7 +102,7 @@ namespace AhuErp.Core.Reports
                 }
                 WriteAscii($"{pagesObj} 0 obj\n<< /Type /Pages /Count {pages.Count} /Kids [{kids}] >>\nendobj\n");
 
-                // 3: Font (Courier — base14, метрики не нужны)
+                // 3: Font (Courier — base14, без встраивания)
                 offsets.Add(bw.BaseStream.Position);
                 WriteAscii($"{fontObj} 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Courier /Encoding /WinAnsiEncoding >>\nendobj\n");
 
@@ -90,7 +112,6 @@ namespace AhuErp.Core.Reports
                     int pageObj = firstPageObj + i * 2;
                     int contentObj = pageObj + 1;
 
-                    // Поток содержимого.
                     var content = new StringBuilder();
                     content.Append("BT\n");
                     content.Append($"/F1 {FontSize} Tf\n");
@@ -102,12 +123,14 @@ namespace AhuErp.Core.Reports
                     {
                         if (!firstLine) content.Append("T*\n");
                         firstLine = false;
-                        content.Append('(').Append(EscapePdfString(raw)).Append(") Tj\n");
+                        // Транслитерация: Courier base14 не содержит кириллических глифов,
+                        // см. док-комментарий класса.
+                        var safe = TransliterateToLatin(raw);
+                        content.Append('(').Append(EscapePdfString(safe)).Append(") Tj\n");
                     }
                     content.Append("ET\n");
 
-                    // WinAnsi-кодированный поток (чтобы кириллица отображалась).
-                    var streamBytes = Win1251Encoding().GetBytes(content.ToString());
+                    var streamBytes = streamEncoding.GetBytes(content.ToString());
 
                     // Page object
                     offsets.Add(bw.BaseStream.Position);
@@ -153,14 +176,111 @@ namespace AhuErp.Core.Reports
         }
 
         /// <summary>
-        /// Кодировка для PDF-потока: предпочитаем Windows-1251, если доступна
-        /// (на mono без CodePagesEncodingProvider возможен fallback на ISO-8859-1
-        /// — это нормально для регламентированных «латинских» отчётов).
+        /// Кодировка для PDF-потока: Windows-1252 (WinAnsi). Соответствует
+        /// декларации <c>/Encoding /WinAnsiEncoding</c> на объекте шрифта.
+        /// На mono/Linux без CodePagesEncodingProvider 1252 может быть
+        /// недоступна — fallback на ISO-8859-1 (для ASCII-only содержимого
+        /// после транслитерации это эквивалентно).
         /// </summary>
-        private static Encoding Win1251Encoding()
+        private static Encoding WinAnsiEncoding()
         {
-            try { return Encoding.GetEncoding(1251); }
+            try { return Encoding.GetEncoding(1252); }
             catch { return Encoding.GetEncoding("ISO-8859-1"); }
+        }
+
+        /// <summary>
+        /// Простая транслитерация русской кириллицы в латиницу
+        /// (ГОСТ 7.79-2000 system A, упрощённо). Все остальные символы
+        /// проходят как есть.
+        /// </summary>
+        private static string TransliterateToLatin(string s)
+        {
+            if (string.IsNullOrEmpty(s)) return s ?? string.Empty;
+            var sb = new StringBuilder(s.Length);
+            foreach (var ch in s)
+            {
+                switch (ch)
+                {
+                    case 'А': sb.Append("A"); break;
+                    case 'Б': sb.Append("B"); break;
+                    case 'В': sb.Append("V"); break;
+                    case 'Г': sb.Append("G"); break;
+                    case 'Д': sb.Append("D"); break;
+                    case 'Е': sb.Append("E"); break;
+                    case 'Ё': sb.Append("Yo"); break;
+                    case 'Ж': sb.Append("Zh"); break;
+                    case 'З': sb.Append("Z"); break;
+                    case 'И': sb.Append("I"); break;
+                    case 'Й': sb.Append("J"); break;
+                    case 'К': sb.Append("K"); break;
+                    case 'Л': sb.Append("L"); break;
+                    case 'М': sb.Append("M"); break;
+                    case 'Н': sb.Append("N"); break;
+                    case 'О': sb.Append("O"); break;
+                    case 'П': sb.Append("P"); break;
+                    case 'Р': sb.Append("R"); break;
+                    case 'С': sb.Append("S"); break;
+                    case 'Т': sb.Append("T"); break;
+                    case 'У': sb.Append("U"); break;
+                    case 'Ф': sb.Append("F"); break;
+                    case 'Х': sb.Append("Kh"); break;
+                    case 'Ц': sb.Append("Ts"); break;
+                    case 'Ч': sb.Append("Ch"); break;
+                    case 'Ш': sb.Append("Sh"); break;
+                    case 'Щ': sb.Append("Shch"); break;
+                    case 'Ъ': sb.Append("\""); break;
+                    case 'Ы': sb.Append("Y"); break;
+                    case 'Ь': sb.Append("'"); break;
+                    case 'Э': sb.Append("E"); break;
+                    case 'Ю': sb.Append("Yu"); break;
+                    case 'Я': sb.Append("Ya"); break;
+                    case 'а': sb.Append("a"); break;
+                    case 'б': sb.Append("b"); break;
+                    case 'в': sb.Append("v"); break;
+                    case 'г': sb.Append("g"); break;
+                    case 'д': sb.Append("d"); break;
+                    case 'е': sb.Append("e"); break;
+                    case 'ё': sb.Append("yo"); break;
+                    case 'ж': sb.Append("zh"); break;
+                    case 'з': sb.Append("z"); break;
+                    case 'и': sb.Append("i"); break;
+                    case 'й': sb.Append("j"); break;
+                    case 'к': sb.Append("k"); break;
+                    case 'л': sb.Append("l"); break;
+                    case 'м': sb.Append("m"); break;
+                    case 'н': sb.Append("n"); break;
+                    case 'о': sb.Append("o"); break;
+                    case 'п': sb.Append("p"); break;
+                    case 'р': sb.Append("r"); break;
+                    case 'с': sb.Append("s"); break;
+                    case 'т': sb.Append("t"); break;
+                    case 'у': sb.Append("u"); break;
+                    case 'ф': sb.Append("f"); break;
+                    case 'х': sb.Append("kh"); break;
+                    case 'ц': sb.Append("ts"); break;
+                    case 'ч': sb.Append("ch"); break;
+                    case 'ш': sb.Append("sh"); break;
+                    case 'щ': sb.Append("shch"); break;
+                    case 'ъ': sb.Append("\""); break;
+                    case 'ы': sb.Append("y"); break;
+                    case 'ь': sb.Append("'"); break;
+                    case 'э': sb.Append("e"); break;
+                    case 'ю': sb.Append("yu"); break;
+                    case 'я': sb.Append("ya"); break;
+                    case '—': sb.Append("-"); break;
+                    case '–': sb.Append("-"); break;
+                    case '«': sb.Append("\""); break;
+                    case '»': sb.Append("\""); break;
+                    case '…': sb.Append("..."); break;
+                    case '№': sb.Append("No."); break;
+                    default:
+                        // ASCII или совместимое — пропускаем; иначе ставим '?'.
+                        if (ch < 128) sb.Append(ch);
+                        else sb.Append('?');
+                        break;
+                }
+            }
+            return sb.ToString();
         }
     }
 }

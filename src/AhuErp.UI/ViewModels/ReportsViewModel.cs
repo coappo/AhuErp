@@ -96,6 +96,7 @@ namespace AhuErp.UI.ViewModels
         private void Run(string defaultName, string ext, Action<string> action)
         {
             ErrorMessage = null;
+            StatusMessage = null;
             try
             {
                 var path = _fileDialog.PromptSaveFile(
