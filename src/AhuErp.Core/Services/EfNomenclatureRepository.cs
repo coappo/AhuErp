@@ -74,15 +74,42 @@ namespace AhuErp.Core.Services
 
         public int GetMaxSequence(int documentTypeRefId, int year)
         {
-            // Последовательность регистрации хранится не в отдельной таблице,
-            // а вычисляется по уже выданным регистрационным номерам данного вида
-            // в данном году. Это исключает рассинхронизацию счётчика и реальных
-            // номеров при ручных правках в БД.
-            var query = _ctx.Documents
+            // Считаем не количество, а реальный максимум числовой последовательности
+            // в уже выданных регистрационных номерах данного вида за указанный год.
+            // Использование Count() было бы небезопасно: после удаления документа
+            // следующий номер мог бы повторить уже выпущенный.
+            var numbers = _ctx.Documents
                 .Where(d => d.DocumentTypeRefId == documentTypeRefId
                             && d.RegistrationDate.HasValue
-                            && d.RegistrationDate.Value.Year == year);
-            return query.Count();
+                            && d.RegistrationDate.Value.Year == year
+                            && d.RegistrationNumber != null)
+                .Select(d => d.RegistrationNumber)
+                .ToList();
+
+            int max = 0;
+            foreach (var raw in numbers)
+            {
+                var seq = ParseTrailingSequence(raw);
+                if (seq > max) max = seq;
+            }
+            return max;
+        }
+
+        /// <summary>
+        /// Извлекает числовую последовательность из хвоста регистрационного номера
+        /// (поддерживаем шаблоны вида «АХУ-01-02/2026-00037» — берём последний
+        /// «числовой блок»). Возвращает 0, если распарсить не удалось.
+        /// </summary>
+        private static int ParseTrailingSequence(string registrationNumber)
+        {
+            if (string.IsNullOrEmpty(registrationNumber)) return 0;
+            int end = registrationNumber.Length - 1;
+            while (end >= 0 && !char.IsDigit(registrationNumber[end])) end--;
+            if (end < 0) return 0;
+            int start = end;
+            while (start - 1 >= 0 && char.IsDigit(registrationNumber[start - 1])) start--;
+            var slice = registrationNumber.Substring(start, end - start + 1);
+            return int.TryParse(slice, out var value) ? value : 0;
         }
 
         /// <summary>

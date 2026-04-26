@@ -220,9 +220,12 @@ namespace AhuErp.UI.ViewModels
             ErrorMessage = null;
             try
             {
-                _nomenclature.Register(SelectedDocument.Id, SelectedCase?.Id);
+                // Запоминаем Id ДО Reload(): тот очищает Documents, что в свою
+                // очередь сбрасывает SelectedDocument в null через WPF-биндинг.
+                var docId = SelectedDocument.Id;
+                _nomenclature.Register(docId, SelectedCase?.Id);
                 Reload();
-                SelectedDocument = Documents.FirstOrDefault(d => d.Id == SelectedDocument?.Id);
+                SelectedDocument = Documents.FirstOrDefault(d => d.Id == docId);
             }
             catch (Exception ex) { ErrorMessage = ex.Message; }
         }
