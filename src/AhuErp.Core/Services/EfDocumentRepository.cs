@@ -92,7 +92,9 @@ namespace AhuErp.Core.Services
                     nameof(Document.DocumentTypeRefId), nameof(Document.NomenclatureCaseId),
                     nameof(Document.AuthorId), nameof(Document.CreationDate),
                     nameof(Document.Deadline), nameof(Document.BasisDocumentId),
-                    nameof(Document.ApprovalStatus),
+                    // ApprovalStatus в whitelist разрешённых, не immutable: подписанный
+                    // КЭП документ может ещё проходить маршрут согласования
+                    // (StartApproval/ApplyDecision/WorkflowService.OnApprovalRouteCompleted).
                 };
                 foreach (var prop in immutable)
                 {

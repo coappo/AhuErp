@@ -62,6 +62,7 @@ namespace AhuErp.UI.ViewModels
         private string signReason;
 
         [ObservableProperty]
+        [NotifyCanExecuteChangedFor(nameof(SignQualifiedCommand))]
         private string signCertificateThumbprint;
 
         public ObservableCollection<InventoryTransaction> RelatedInventoryTx { get; }
@@ -116,6 +117,8 @@ namespace AhuErp.UI.ViewModels
         [NotifyCanExecuteChangedFor(nameof(CreateVehicleTripCommand))]
         [NotifyCanExecuteChangedFor(nameof(CreateArchiveRequestCommand))]
         [NotifyCanExecuteChangedFor(nameof(CreateItTicketCommand))]
+        [NotifyCanExecuteChangedFor(nameof(SignSimpleCommand))]
+        [NotifyCanExecuteChangedFor(nameof(SignQualifiedCommand))]
         private Document selectedDocument;
 
         [ObservableProperty]

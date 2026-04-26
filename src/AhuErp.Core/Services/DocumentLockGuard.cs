@@ -45,7 +45,8 @@ namespace AhuErp.Core.Services
                 d.CreationDate.Ticks,
                 d.Deadline.Ticks,
                 d.BasisDocumentId ?? 0,
-                d.ApprovalStatus,
+                // ApprovalStatus намеренно не входит в slice — заблокированный
+                // документ всё равно может ходить по маршруту согласования.
             });
 
         public void Enforce(Document current)

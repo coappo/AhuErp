@@ -185,6 +185,25 @@ namespace AhuErp.Tests
             Assert.Equal(DocumentAccessLevel.Internal, fresh.AccessLevel);
         }
 
+        [Fact]
+        public void Locked_document_allows_approval_status_changes()
+        {
+            // Регрессия по Devin Review #3 (RED): ApprovalStatus был ошибочно
+            // в immutable-списке. Это блокировало StartApproval/ApplyDecision/
+            // WorkflowService.OnApprovalRouteCompleted на КЭП-документах.
+            var doc = CreateDoc();
+            var att = UploadAttachment(doc.Id);
+            _signatures.Sign(doc.Id, att.Id, _signer.Id, SignatureKind.Qualified,
+                certificateThumbprint: "CERT");
+
+            var loaded = _docs.GetById(doc.Id);
+            loaded.ApprovalStatus = ApprovalRouteStatus.InProgress;
+            _docs.Update(loaded);
+
+            var fresh = _docs.GetById(doc.Id);
+            Assert.Equal(ApprovalRouteStatus.InProgress, fresh.ApprovalStatus);
+        }
+
         // ---------------- file substitution ------------------------------
 
         [Fact]
