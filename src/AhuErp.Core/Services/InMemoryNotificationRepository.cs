@@ -46,6 +46,15 @@ namespace AhuErp.Core.Services
                 .ToList()
                 .AsReadOnly();
 
+        public IReadOnlyList<Notification> ListByRelatedTaskAndRecipient(
+            int taskId, NotificationKind kind, int recipientId)
+            => _items
+                .Where(n => n.RelatedTaskId == taskId
+                            && n.Kind == kind
+                            && n.RecipientId == recipientId)
+                .ToList()
+                .AsReadOnly();
+
         public NotificationPreference GetPreference(int employeeId, NotificationKind kind)
             => _prefs.FirstOrDefault(p => p.EmployeeId == employeeId && p.Kind == kind);
 

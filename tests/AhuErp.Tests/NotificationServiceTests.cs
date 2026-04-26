@@ -255,6 +255,47 @@ namespace AhuErp.Tests
         }
 
         [Fact]
+        public void TickReminders_after_delegation_notifies_new_executor()
+        {
+            // Регрессия по Devin Review #2: после делегирования задачи на нового
+            // исполнителя дедупликация по task+kind «съедала» напоминание для нового
+            // исполнителя, потому что у задачи уже была запись для прежнего.
+            // После фикса дедуп идёт per-recipient — новый исполнитель получает
+            // ровно одно DeadlineSoon / Overdue.
+            var task = _tasks.AddTask(new DocumentTask
+            {
+                DocumentId = 1,
+                AuthorId = 1,
+                ExecutorId = 2,
+                Description = "x",
+                Deadline = DateTime.Now.AddHours(-1),
+                Status = DocumentTaskStatus.InProgress,
+                CreatedAt = DateTime.Now.AddDays(-1),
+            });
+
+            // Первый тик — Overdue для исходного исполнителя (2).
+            _service.TickReminders(DateTime.Now);
+            Assert.Single(_repo.ListByRelatedTaskAndRecipient(
+                task.Id, NotificationKind.TaskOverdue, recipientId: 2));
+
+            // Делегируем задачу: меняется ExecutorId.
+            task.ExecutorId = 3;
+            _tasks.UpdateTask(task);
+
+            // Второй тик — должен создать Overdue для нового исполнителя (3).
+            _service.TickReminders(DateTime.Now);
+            Assert.Single(_repo.ListByRelatedTaskAndRecipient(
+                task.Id, NotificationKind.TaskOverdue, recipientId: 3));
+            // У старого исполнителя по-прежнему ровно один.
+            Assert.Single(_repo.ListByRelatedTaskAndRecipient(
+                task.Id, NotificationKind.TaskOverdue, recipientId: 2));
+
+            // И ещё один тик — без дублей.
+            _service.TickReminders(DateTime.Now);
+            Assert.Equal(2, _repo.ListByRelatedTask(task.Id, NotificationKind.TaskOverdue).Count);
+        }
+
+        [Fact]
         public void Create_throws_on_invalid_recipient_or_title()
         {
             Assert.Throws<ArgumentException>(() =>

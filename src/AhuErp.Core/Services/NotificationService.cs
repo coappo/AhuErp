@@ -143,9 +143,12 @@ namespace AhuErp.Core.Services
                 if (t.Status == DocumentTaskStatus.Completed
                     || t.Status == DocumentTaskStatus.Cancelled) continue;
 
-                // 24 часа до дедлайна → DeadlineSoon (один раз).
+                // 24 часа до дедлайна → DeadlineSoon (один раз ДЛЯ ТЕКУЩЕГО исполнителя).
+                // После делегирования task.ExecutorId меняется — у нового сотрудника
+                // напоминания ещё нет, поэтому проверяем per-recipient, а не per-task.
                 if (now < t.Deadline && (t.Deadline - now).TotalHours <= 24
-                    && _repo.ListByRelatedTask(t.Id, NotificationKind.TaskDeadlineSoon).Count == 0)
+                    && _repo.ListByRelatedTaskAndRecipient(
+                        t.Id, NotificationKind.TaskDeadlineSoon, t.ExecutorId).Count == 0)
                 {
                     Create(t.ExecutorId, NotificationKind.TaskDeadlineSoon,
                         $"Срок поручения скоро истекает (#{t.Id})",
@@ -153,9 +156,10 @@ namespace AhuErp.Core.Services
                         docId: t.DocumentId, taskId: t.Id);
                 }
 
-                // Просрочено → Overdue (один раз).
+                // Просрочено → Overdue (один раз ДЛЯ ТЕКУЩЕГО исполнителя).
                 if (now > t.Deadline
-                    && _repo.ListByRelatedTask(t.Id, NotificationKind.TaskOverdue).Count == 0)
+                    && _repo.ListByRelatedTaskAndRecipient(
+                        t.Id, NotificationKind.TaskOverdue, t.ExecutorId).Count == 0)
                 {
                     Create(t.ExecutorId, NotificationKind.TaskOverdue,
                         $"Поручение просрочено (#{t.Id})",
