@@ -2,6 +2,7 @@ using System;
 using System.Text;
 using System.Windows;
 using System.Windows.Threading;
+using AhuErp.Core.Services;
 using AhuErp.UI.Infrastructure;
 using AhuErp.UI.ViewModels;
 
@@ -46,6 +47,24 @@ namespace AhuErp.UI
             MainWindow = main;
             main.Closed += (_, __) => Shutdown();
             main.Show();
+
+            // Phase 10 — фоновое доиндексирование вложений каждые 5 минут.
+            // Запускаем именно через DispatcherTimer, чтобы EF6/AhuDbContext
+            // оставался в одном UI-треде (контекст у нас Singleton).
+            var indexTimer = new DispatcherTimer { Interval = TimeSpan.FromMinutes(5) };
+            indexTimer.Tick += (_, __) =>
+            {
+                try
+                {
+                    var index = AppServices.GetRequiredService<ISearchIndexService>();
+                    index.IndexOutdated();
+                }
+                catch
+                {
+                    // тихо проглатываем — поиск не критичный фоновый процесс.
+                }
+            };
+            indexTimer.Start();
         }
 
         private static void OnDispatcherUnhandledException(object sender, DispatcherUnhandledExceptionEventArgs e)

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using AhuErp.Core.Data;
 using AhuErp.Core.Services;
 using AhuErp.UI.ViewModels;
@@ -78,6 +79,25 @@ namespace AhuErp.UI.Infrastructure
 
             services.AddSingleton<IApprovalRepository, EfApprovalRepository>();
             services.AddSingleton<IApprovalService, ApprovalService>();
+
+            // Phase 10 — полнотекстовый поиск и сохранённые фильтры.
+            services.AddSingleton<ISearchIndexRepository, EfSearchIndexRepository>();
+            services.AddSingleton<ISavedSearchRepository, EfSavedSearchRepository>();
+            services.AddSingleton<IEnumerable<ITextExtractor>>(sp => new ITextExtractor[]
+            {
+                new PdfTextExtractor(),
+                new DocxTextExtractor(),
+                new PlainTextExtractor(),
+            });
+            services.AddSingleton<ISearchIndexService>(sp => new SearchIndexService(
+                sp.GetRequiredService<ISearchIndexRepository>(),
+                sp.GetRequiredService<IAttachmentRepository>(),
+                sp.GetRequiredService<IDocumentRepository>(),
+                sp.GetRequiredService<IFileStorageService>(),
+                sp.GetRequiredService<IEnumerable<ITextExtractor>>()));
+            services.AddSingleton<ISavedSearchService>(sp => new SavedSearchService(
+                sp.GetRequiredService<ISavedSearchRepository>(),
+                sp.GetRequiredService<IAuditService>()));
 
             services.AddSingleton<IReportService>(sp => new ReportService(
                 sp.GetRequiredService<IInventoryRepository>(),

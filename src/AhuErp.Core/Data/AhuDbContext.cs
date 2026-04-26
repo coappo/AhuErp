@@ -53,6 +53,8 @@ namespace AhuErp.Core.Data
         public virtual DbSet<ApprovalStage> ApprovalStages { get; set; }
         public virtual DbSet<DocumentApproval> DocumentApprovals { get; set; }
         public virtual DbSet<AuditLog> AuditLogs { get; set; }
+        public virtual DbSet<AttachmentTextIndex> AttachmentTextIndices { get; set; }
+        public virtual DbSet<SavedSearch> SavedSearches { get; set; }
 
         protected override void OnModelCreating(DbModelBuilder modelBuilder)
         {
@@ -283,6 +285,27 @@ namespace AhuErp.Core.Data
                 .HasOptional(a => a.User)
                 .WithMany()
                 .HasForeignKey(a => a.UserId)
+                .WillCascadeOnDelete(false);
+
+            // Phase 10 — полнотекстовый индекс и сохранённые поиски.
+            modelBuilder.Entity<AttachmentTextIndex>().ToTable("AttachmentTextIndices");
+            modelBuilder.Entity<AttachmentTextIndex>()
+                .Property(x => x.ExtractedText)
+                .HasColumnType("nvarchar(max)");
+            modelBuilder.Entity<AttachmentTextIndex>()
+                .HasRequired(x => x.Attachment)
+                .WithMany()
+                .HasForeignKey(x => x.AttachmentId)
+                .WillCascadeOnDelete(false);
+
+            modelBuilder.Entity<SavedSearch>().ToTable("SavedSearches");
+            modelBuilder.Entity<SavedSearch>()
+                .Property(x => x.FilterJson)
+                .HasColumnType("nvarchar(max)");
+            modelBuilder.Entity<SavedSearch>()
+                .HasRequired(x => x.Owner)
+                .WithMany()
+                .HasForeignKey(x => x.OwnerId)
                 .WillCascadeOnDelete(false);
 
             base.OnModelCreating(modelBuilder);
