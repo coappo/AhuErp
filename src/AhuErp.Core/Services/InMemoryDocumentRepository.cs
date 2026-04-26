@@ -66,5 +66,70 @@ namespace AhuErp.Core.Services
             var index = _documents.FindIndex(d => d.Id == id);
             if (index >= 0) _documents.RemoveAt(index);
         }
+
+        public IReadOnlyList<Document> Search(DocumentSearchFilter filter)
+        {
+            if (filter == null) filter = new DocumentSearchFilter();
+            IEnumerable<Document> q = _documents;
+
+            if (filter.Direction.HasValue)
+                q = q.Where(d => d.Direction == filter.Direction.Value);
+
+            if (filter.StatusIn != null && filter.StatusIn.Length > 0)
+                q = q.Where(d => filter.StatusIn.Contains(d.Status));
+            else if (filter.Status.HasValue)
+                q = q.Where(d => d.Status == filter.Status.Value);
+
+            if (filter.NomenclatureCaseId.HasValue)
+                q = q.Where(d => d.NomenclatureCaseId == filter.NomenclatureCaseId.Value);
+
+            if (filter.DocumentTypeRefId.HasValue)
+                q = q.Where(d => d.DocumentTypeRefId == filter.DocumentTypeRefId.Value);
+
+            if (filter.AssignedEmployeeId.HasValue)
+                q = q.Where(d => d.AssignedEmployeeId == filter.AssignedEmployeeId.Value);
+
+            if (filter.RegisteredOnly)
+                q = q.Where(d => !string.IsNullOrEmpty(d.RegistrationNumber) && d.RegistrationDate.HasValue);
+
+            if (filter.From.HasValue)
+                q = q.Where(d => (d.RegistrationDate ?? d.CreationDate) >= filter.From.Value);
+
+            if (filter.To.HasValue)
+                q = q.Where(d => (d.RegistrationDate ?? d.CreationDate) <= filter.To.Value);
+
+            if (!string.IsNullOrWhiteSpace(filter.Correspondent))
+            {
+                var c = filter.Correspondent.Trim();
+                q = q.Where(d => !string.IsNullOrEmpty(d.Correspondent)
+                                 && d.Correspondent.IndexOf(c, StringComparison.OrdinalIgnoreCase) >= 0);
+            }
+
+            if (!string.IsNullOrWhiteSpace(filter.Text))
+            {
+                var t = filter.Text.Trim();
+                q = q.Where(d =>
+                       Contains(d.Title, t)
+                    || Contains(d.Summary, t)
+                    || Contains(d.RegistrationNumber, t)
+                    || Contains(d.Correspondent, t)
+                    || Contains(d.IncomingNumber, t));
+            }
+
+            if (filter.OverdueOnly)
+            {
+                var now = DateTime.Now;
+                q = q.Where(d => d.IsOverdue(now));
+            }
+
+            return q.OrderByDescending(d => d.RegistrationDate ?? d.CreationDate)
+                    .ThenByDescending(d => d.Id)
+                    .ToList()
+                    .AsReadOnly();
+        }
+
+        private static bool Contains(string source, string token)
+            => !string.IsNullOrEmpty(source)
+               && source.IndexOf(token, StringComparison.OrdinalIgnoreCase) >= 0;
     }
 }

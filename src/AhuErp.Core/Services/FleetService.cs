@@ -85,7 +85,8 @@ namespace AhuErp.Core.Services
                 Vehicle = vehicle,
                 StartDate = startDate,
                 EndDate = endDate,
-                DocumentId = documentId
+                DocumentId = documentId,
+                BasisDocumentId = documentId
             };
 
             vehicle.Trips.Add(newTrip);

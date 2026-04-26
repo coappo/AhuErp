@@ -22,30 +22,38 @@ namespace AhuErp.Core.Services
         public const string Nomenclature = nameof(Nomenclature);
         public const string AuditJournal = nameof(AuditJournal);
 
+        // Phase 8 — журналы регистрации, поиск и отчётность СЭД.
+        public const string Journals = nameof(Journals);
+        public const string Search = nameof(Search);
+        public const string Reports = nameof(Reports);
+
         private static readonly IReadOnlyDictionary<EmployeeRole, HashSet<string>> _allowed =
             new Dictionary<EmployeeRole, HashSet<string>>
             {
                 [EmployeeRole.Admin] = new HashSet<string>
                 {
                     Dashboard, Office, Archive, ItService, Fleet, Warehouse,
-                    MyTasks, Nomenclature, AuditJournal
+                    MyTasks, Nomenclature, AuditJournal,
+                    Journals, Search, Reports
                 },
                 [EmployeeRole.Manager] = new HashSet<string>
                 {
                     Dashboard, Office, Archive, ItService, Fleet, Warehouse,
-                    MyTasks, Nomenclature
+                    MyTasks, Nomenclature,
+                    Journals, Search, Reports
                 },
                 [EmployeeRole.Archivist] = new HashSet<string>
                 {
-                    Dashboard, Archive, MyTasks, Nomenclature
+                    Dashboard, Archive, MyTasks, Nomenclature,
+                    Journals, Search, Reports
                 },
                 [EmployeeRole.TechSupport] = new HashSet<string>
                 {
-                    Dashboard, ItService, MyTasks
+                    Dashboard, ItService, MyTasks, Search
                 },
                 [EmployeeRole.WarehouseManager] = new HashSet<string>
                 {
-                    Dashboard, Office, Fleet, Warehouse, MyTasks
+                    Dashboard, Office, Fleet, Warehouse, MyTasks, Search, Reports
                 },
             };
 

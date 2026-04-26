@@ -22,6 +22,10 @@ namespace AhuErp.UI.ViewModels
         private readonly IApprovalService _approvals;
         private readonly IAuditService _audit;
         private readonly IAuthService _auth;
+        private readonly IInventoryService _inventory;
+        private readonly IInventoryRepository _inventoryRepo;
+        private readonly IFleetService _fleet;
+        private readonly IVehicleRepository _vehicleRepo;
 
         public ObservableCollection<Document> Documents { get; }
             = new ObservableCollection<Document>();
@@ -43,6 +47,44 @@ namespace AhuErp.UI.ViewModels
 
         public ObservableCollection<AuditLog> History { get; }
             = new ObservableCollection<AuditLog>();
+
+        public ObservableCollection<InventoryTransaction> RelatedInventoryTx { get; }
+            = new ObservableCollection<InventoryTransaction>();
+
+        public ObservableCollection<VehicleTrip> RelatedTrips { get; }
+            = new ObservableCollection<VehicleTrip>();
+
+        public ObservableCollection<InventoryItem> InventoryItems { get; }
+            = new ObservableCollection<InventoryItem>();
+
+        public ObservableCollection<Vehicle> Vehicles { get; }
+            = new ObservableCollection<Vehicle>();
+
+        // Поля диалога связанной операции «Списание ТМЦ»
+        [ObservableProperty]
+        [NotifyCanExecuteChangedFor(nameof(CreateInventoryWriteOffCommand))]
+        private InventoryItem newWriteOffItem;
+
+        [ObservableProperty]
+        [NotifyCanExecuteChangedFor(nameof(CreateInventoryWriteOffCommand))]
+        private int newWriteOffQuantity = 1;
+
+        // Поля диалога связанной операции «Путевой лист»
+        [ObservableProperty]
+        [NotifyCanExecuteChangedFor(nameof(CreateVehicleTripCommand))]
+        private Vehicle newTripVehicle;
+
+        [ObservableProperty]
+        [NotifyCanExecuteChangedFor(nameof(CreateVehicleTripCommand))]
+        private DateTime newTripStart = DateTime.Today;
+
+        [ObservableProperty]
+        [NotifyCanExecuteChangedFor(nameof(CreateVehicleTripCommand))]
+        private DateTime newTripEnd = DateTime.Today.AddDays(1);
+
+        [ObservableProperty]
+        [NotifyCanExecuteChangedFor(nameof(CreateVehicleTripCommand))]
+        private string newTripDriver;
 
         public DocumentDirection[] Directions { get; } =
             (DocumentDirection[])Enum.GetValues(typeof(DocumentDirection));
@@ -102,7 +144,11 @@ namespace AhuErp.UI.ViewModels
             ITaskService tasks,
             IApprovalService approvals,
             IAuditService audit,
-            IAuthService auth)
+            IAuthService auth,
+            IInventoryService inventory,
+            IInventoryRepository inventoryRepo,
+            IFleetService fleet,
+            IVehicleRepository vehicleRepo)
         {
             _documents = documents ?? throw new ArgumentNullException(nameof(documents));
             _nomenclature = nomenclature ?? throw new ArgumentNullException(nameof(nomenclature));
@@ -111,6 +157,10 @@ namespace AhuErp.UI.ViewModels
             _approvals = approvals ?? throw new ArgumentNullException(nameof(approvals));
             _audit = audit ?? throw new ArgumentNullException(nameof(audit));
             _auth = auth ?? throw new ArgumentNullException(nameof(auth));
+            _inventory = inventory ?? throw new ArgumentNullException(nameof(inventory));
+            _inventoryRepo = inventoryRepo ?? throw new ArgumentNullException(nameof(inventoryRepo));
+            _fleet = fleet ?? throw new ArgumentNullException(nameof(fleet));
+            _vehicleRepo = vehicleRepo ?? throw new ArgumentNullException(nameof(vehicleRepo));
 
             Reload();
         }
@@ -134,6 +184,11 @@ namespace AhuErp.UI.ViewModels
             ReloadTasks();
             ReloadApprovals();
             ReloadHistory();
+            ReloadRelatedOps();
+            CreateInventoryWriteOffCommand.NotifyCanExecuteChanged();
+            CreateVehicleTripCommand.NotifyCanExecuteChanged();
+            CreateArchiveRequestCommand.NotifyCanExecuteChanged();
+            CreateItTicketCommand.NotifyCanExecuteChanged();
         }
 
         [RelayCommand]
@@ -144,6 +199,12 @@ namespace AhuErp.UI.ViewModels
             foreach (var t in _nomenclature.ListTypes()) DocumentTypes.Add(t);
             NomenclatureCases.Clear();
             foreach (var c in _nomenclature.ListCases()) NomenclatureCases.Add(c);
+            InventoryItems.Clear();
+            foreach (var i in _inventoryRepo.ListItems().OrderBy(i => i.Name))
+                InventoryItems.Add(i);
+            Vehicles.Clear();
+            foreach (var v in _vehicleRepo.ListVehicles().OrderBy(v => v.LicensePlate))
+                Vehicles.Add(v);
             Documents.Clear();
             // Загружаем все «офисные» направления документов.
             foreach (var d in _documents.ListByType(DocumentType.Internal)
@@ -248,6 +309,149 @@ namespace AhuErp.UI.ViewModels
                 ReloadHistory();
             }
             catch (Exception ex) { ErrorMessage = ex.Message; }
+        }
+
+        // ── Task 7: «Создать связанную операцию» ──────────────────────────
+
+        [RelayCommand(CanExecute = nameof(CanWriteOff))]
+        private void CreateInventoryWriteOff()
+        {
+            ErrorMessage = null;
+            try
+            {
+                var actor = _auth.CurrentEmployee?.Id ?? 0;
+                if (actor <= 0) throw new InvalidOperationException("Не определён текущий пользователь.");
+                if (NewWriteOffQuantity <= 0)
+                    throw new InvalidOperationException("Количество должно быть положительным.");
+
+                var tx = _inventory.ProcessTransaction(
+                    NewWriteOffItem.Id,
+                    -NewWriteOffQuantity,
+                    SelectedDocument.Id,
+                    actor);
+
+                _audit.Record(AuditActionType.Created, nameof(InventoryTransaction), tx.Id, actor,
+                    newValues: $"BasisDocumentId={SelectedDocument.Id};Item={NewWriteOffItem.Name};Qty=-{NewWriteOffQuantity}");
+
+                NewWriteOffItem = null;
+                NewWriteOffQuantity = 1;
+                ReloadRelatedOps();
+                ReloadHistory();
+            }
+            catch (Exception ex) { ErrorMessage = ex.Message; }
+        }
+
+        [RelayCommand(CanExecute = nameof(CanCreateTrip))]
+        private void CreateVehicleTrip()
+        {
+            ErrorMessage = null;
+            try
+            {
+                var actor = _auth.CurrentEmployee?.Id ?? 0;
+                if (actor <= 0) throw new InvalidOperationException("Не определён текущий пользователь.");
+
+                var trip = _fleet.BookVehicle(
+                    NewTripVehicle.Id,
+                    SelectedDocument.Id,
+                    NewTripStart,
+                    NewTripEnd,
+                    string.IsNullOrWhiteSpace(NewTripDriver) ? "—" : NewTripDriver);
+
+                _audit.Record(AuditActionType.Created, nameof(VehicleTrip), trip.Id, actor,
+                    newValues: $"BasisDocumentId={SelectedDocument.Id};Vehicle={NewTripVehicle.LicensePlate};Driver={NewTripDriver};{NewTripStart:yyyy-MM-dd}—{NewTripEnd:yyyy-MM-dd}");
+
+                NewTripVehicle = null;
+                NewTripDriver = null;
+                NewTripStart = DateTime.Today;
+                NewTripEnd = DateTime.Today.AddDays(1);
+                ReloadRelatedOps();
+                ReloadHistory();
+            }
+            catch (Exception ex) { ErrorMessage = ex.Message; }
+        }
+
+        [RelayCommand(CanExecute = nameof(HasSelectedDocument))]
+        private void CreateArchiveRequest()
+        {
+            ErrorMessage = null;
+            try
+            {
+                var actor = _auth.CurrentEmployee?.Id ?? 0;
+                var req = new ArchiveRequest
+                {
+                    Title = $"Заявка на основании документа {SelectedDocument.RegistrationNumber ?? "#" + SelectedDocument.Id}",
+                    Summary = SelectedDocument.Summary,
+                    Type = DocumentType.Archive,
+                    Direction = DocumentDirection.Internal,
+                    AccessLevel = SelectedDocument.AccessLevel,
+                    CreationDate = DateTime.Now,
+                    Deadline = DateTime.Today.AddDays(30),
+                    Status = DocumentStatus.New,
+                    AuthorId = actor > 0 ? (int?)actor : null,
+                    BasisDocumentId = SelectedDocument.Id
+                };
+                _documents.Add(req);
+                _audit.Record(AuditActionType.Created, nameof(ArchiveRequest), req.Id, actor,
+                    newValues: $"BasisDocumentId={SelectedDocument.Id}");
+                ReloadHistory();
+            }
+            catch (Exception ex) { ErrorMessage = ex.Message; }
+        }
+
+        [RelayCommand(CanExecute = nameof(HasSelectedDocument))]
+        private void CreateItTicket()
+        {
+            ErrorMessage = null;
+            try
+            {
+                var actor = _auth.CurrentEmployee?.Id ?? 0;
+                var ticket = new ItTicket
+                {
+                    Title = $"Заявка ИТ по документу {SelectedDocument.RegistrationNumber ?? "#" + SelectedDocument.Id}",
+                    Summary = SelectedDocument.Summary,
+                    Type = DocumentType.It,
+                    Direction = DocumentDirection.Internal,
+                    AccessLevel = SelectedDocument.AccessLevel,
+                    CreationDate = DateTime.Now,
+                    Deadline = DateTime.Today.AddDays(7),
+                    Status = DocumentStatus.New,
+                    AuthorId = actor > 0 ? (int?)actor : null,
+                    BasisDocumentId = SelectedDocument.Id
+                };
+                _documents.Add(ticket);
+                _audit.Record(AuditActionType.Created, nameof(ItTicket), ticket.Id, actor,
+                    newValues: $"BasisDocumentId={SelectedDocument.Id}");
+                ReloadHistory();
+            }
+            catch (Exception ex) { ErrorMessage = ex.Message; }
+        }
+
+        private bool HasSelectedDocument() => SelectedDocument != null;
+
+        private bool CanWriteOff() =>
+            SelectedDocument != null && NewWriteOffItem != null && NewWriteOffQuantity > 0;
+
+        private bool CanCreateTrip() =>
+            SelectedDocument != null && NewTripVehicle != null
+            && NewTripEnd > NewTripStart;
+
+        private void ReloadRelatedOps()
+        {
+            RelatedInventoryTx.Clear();
+            RelatedTrips.Clear();
+            if (SelectedDocument == null) return;
+
+            foreach (var tx in _inventoryRepo.ListTransactions()
+                                              .Where(t => t.BasisDocumentId == SelectedDocument.Id
+                                                          || t.DocumentId == SelectedDocument.Id)
+                                              .OrderByDescending(t => t.TransactionDate))
+                RelatedInventoryTx.Add(tx);
+
+            foreach (var v in _vehicleRepo.ListVehicles())
+                foreach (var trip in _vehicleRepo.ListTrips(v.Id)
+                                                  .Where(t => t.BasisDocumentId == SelectedDocument.Id
+                                                              || t.DocumentId == SelectedDocument.Id))
+                    RelatedTrips.Add(trip);
         }
 
         private static DocumentType MapDirectionToType(DocumentDirection dir)

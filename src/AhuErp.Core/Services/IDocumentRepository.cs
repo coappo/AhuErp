@@ -20,5 +20,13 @@ namespace AhuErp.Core.Services
         void Add(Document document);
         void Update(Document document);
         void Remove(int id);
+
+        /// <summary>
+        /// Универсальный поиск документов по фильтру (используется в журналах
+        /// регистрации и глобальном поиске Ctrl+F). Сортировка стабильная:
+        /// по <see cref="Document.RegistrationDate"/> DESC (или CreationDate),
+        /// затем по Id.
+        /// </summary>
+        IReadOnlyList<Document> Search(DocumentSearchFilter filter);
     }
 }

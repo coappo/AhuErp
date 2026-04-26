@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using AhuErp.Core.Models;
@@ -18,11 +19,33 @@ namespace AhuErp.Core.Services
     {
         private readonly IInventoryRepository _inventory;
         private readonly IDocumentRepository _documents;
+        private readonly ITaskService _tasks;
+        private readonly ITaskRepository _taskRepo;
+        private readonly INomenclatureRepository _nomenclature;
 
         public ReportService(IInventoryRepository inventory, IDocumentRepository documents)
+            : this(inventory, documents, null, null, null)
+        {
+        }
+
+        /// <summary>
+        /// Полная DI-перегрузка для отчётов СЭД (исполнительская дисциплина,
+        /// объём документооборота, просрочка, аналитика по номенклатуре).
+        /// Старая 2-аргументная перегрузка сохранена ради обратной совместимости
+        /// с тестами Phase 4.
+        /// </summary>
+        public ReportService(
+            IInventoryRepository inventory,
+            IDocumentRepository documents,
+            ITaskService tasks,
+            ITaskRepository taskRepo,
+            INomenclatureRepository nomenclature)
         {
             _inventory = inventory ?? throw new ArgumentNullException(nameof(inventory));
             _documents = documents ?? throw new ArgumentNullException(nameof(documents));
+            _tasks = tasks;
+            _taskRepo = taskRepo;
+            _nomenclature = nomenclature;
         }
 
         public void ExportInventoryToExcel(string filePath)
@@ -114,6 +137,329 @@ namespace AhuErp.Core.Services
 
                 main.Document.Save();
             }
+        }
+
+        public void ExportRegistrationJournal(IEnumerable<Document> documents, string title, string filePath)
+        {
+            if (documents == null) throw new ArgumentNullException(nameof(documents));
+            if (string.IsNullOrWhiteSpace(filePath))
+                throw new ArgumentException("Путь к файлу обязателен.", nameof(filePath));
+
+            var rows = documents.ToList();
+            using (var workbook = new XLWorkbook())
+            {
+                var sheet = workbook.Worksheets.Add(SafeSheetName(string.IsNullOrWhiteSpace(title) ? "Журнал" : title));
+
+                sheet.Cell(1, 1).Value = string.IsNullOrWhiteSpace(title) ? "Журнал регистрации" : title;
+                sheet.Range(1, 1, 1, 9).Merge().Style
+                    .Font.SetBold(true).Font.SetFontSize(14)
+                    .Alignment.SetHorizontal(XLAlignmentHorizontalValues.Center);
+                sheet.Cell(2, 1).Value = $"Сформировано: {DateTime.Now:dd.MM.yyyy HH:mm}";
+                sheet.Range(2, 1, 2, 9).Merge();
+
+                int header = 4;
+                sheet.Cell(header, 1).Value = "Рег. №";
+                sheet.Cell(header, 2).Value = "Дата рег.";
+                sheet.Cell(header, 3).Value = "Направление";
+                sheet.Cell(header, 4).Value = "Вид";
+                sheet.Cell(header, 5).Value = "Заголовок";
+                sheet.Cell(header, 6).Value = "Корреспондент";
+                sheet.Cell(header, 7).Value = "Исполнитель";
+                sheet.Cell(header, 8).Value = "Срок";
+                sheet.Cell(header, 9).Value = "Статус";
+
+                var hdr = sheet.Range(header, 1, header, 9);
+                hdr.Style.Font.Bold = true;
+                hdr.Style.Fill.BackgroundColor = XLColor.LightSteelBlue;
+                hdr.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+                hdr.Style.Border.BottomBorder = XLBorderStyleValues.Medium;
+
+                int row = header + 1;
+                foreach (var d in rows)
+                {
+                    sheet.Cell(row, 1).Value = d.RegistrationNumber ?? "—";
+                    sheet.Cell(row, 2).Value = d.RegistrationDate?.ToString("dd.MM.yyyy") ?? "—";
+                    sheet.Cell(row, 3).Value = FormatDirection(d.Direction);
+                    sheet.Cell(row, 4).Value = d.DocumentTypeRef?.Name ?? FormatDocumentType(d.Type);
+                    sheet.Cell(row, 5).Value = d.Title ?? string.Empty;
+                    sheet.Cell(row, 6).Value = d.Correspondent ?? string.Empty;
+                    sheet.Cell(row, 7).Value = d.AssignedEmployee?.FullName ?? string.Empty;
+                    sheet.Cell(row, 8).Value = d.Deadline.ToString("dd.MM.yyyy");
+                    sheet.Cell(row, 9).Value = FormatDocumentStatus(d.Status);
+                    row++;
+                }
+
+                sheet.Columns().AdjustToContents();
+                sheet.Column(5).Width = Math.Min(60, sheet.Column(5).Width);
+                workbook.SaveAs(filePath);
+            }
+        }
+
+        public void ExportExecutionDisciplineReport(DateTime from, DateTime to, string filePath)
+        {
+            if (string.IsNullOrWhiteSpace(filePath))
+                throw new ArgumentException("Путь к файлу обязателен.", nameof(filePath));
+            if (_tasks == null)
+                throw new InvalidOperationException("ReportService не настроен для отчётов СЭД (нет ITaskService).");
+
+            var report = _tasks.BuildDisciplineReport(from, to);
+
+            using (var workbook = new XLWorkbook())
+            {
+                var sheet = workbook.Worksheets.Add("Дисциплина");
+                sheet.Cell(1, 1).Value = "Исполнительская дисциплина";
+                sheet.Range(1, 1, 1, 6).Merge().Style.Font.SetBold(true).Font.SetFontSize(14)
+                    .Alignment.SetHorizontal(XLAlignmentHorizontalValues.Center);
+                sheet.Cell(2, 1).Value = $"Период: {from:dd.MM.yyyy} — {to:dd.MM.yyyy}";
+                sheet.Range(2, 1, 2, 6).Merge();
+
+                sheet.Cell(4, 1).Value = "Всего поручений";
+                sheet.Cell(4, 2).Value = report.TotalTasks;
+                sheet.Cell(5, 1).Value = "В срок";
+                sheet.Cell(5, 2).Value = report.CompletedOnTime;
+                sheet.Cell(6, 1).Value = "С нарушением срока";
+                sheet.Cell(6, 2).Value = report.CompletedLate;
+                sheet.Cell(7, 1).Value = "Просрочено (открытые)";
+                sheet.Cell(7, 2).Value = report.Overdue;
+                sheet.Cell(8, 1).Value = "В работе";
+                sheet.Cell(8, 2).Value = report.InProgress;
+
+                int hdr = 10;
+                sheet.Cell(hdr, 1).Value = "Исполнитель";
+                sheet.Cell(hdr, 2).Value = "Всего";
+                sheet.Cell(hdr, 3).Value = "В срок";
+                sheet.Cell(hdr, 4).Value = "Опоздание";
+                sheet.Cell(hdr, 5).Value = "Просрочено";
+                sheet.Cell(hdr, 6).Value = "% дисциплины";
+                var headerRange = sheet.Range(hdr, 1, hdr, 6);
+                headerRange.Style.Font.Bold = true;
+                headerRange.Style.Fill.BackgroundColor = XLColor.LightSteelBlue;
+                headerRange.Style.Border.BottomBorder = XLBorderStyleValues.Medium;
+
+                int row = hdr + 1;
+                foreach (var r in report.ByExecutor)
+                {
+                    double pct = r.Total == 0 ? 0.0 : 100.0 * r.CompletedOnTime / r.Total;
+                    sheet.Cell(row, 1).Value = r.ExecutorName;
+                    sheet.Cell(row, 2).Value = r.Total;
+                    sheet.Cell(row, 3).Value = r.CompletedOnTime;
+                    sheet.Cell(row, 4).Value = r.CompletedLate;
+                    sheet.Cell(row, 5).Value = r.Overdue;
+                    sheet.Cell(row, 6).Value = Math.Round(pct, 1);
+                    row++;
+                }
+
+                sheet.Columns().AdjustToContents();
+                workbook.SaveAs(filePath);
+            }
+        }
+
+        public void ExportDocumentVolumeReport(DateTime from, DateTime to, string filePath)
+        {
+            if (string.IsNullOrWhiteSpace(filePath))
+                throw new ArgumentException("Путь к файлу обязателен.", nameof(filePath));
+
+            var docs = _documents.Search(new DocumentSearchFilter { From = from, To = to });
+
+            using (var workbook = new XLWorkbook())
+            {
+                var sheet = workbook.Worksheets.Add("Объём");
+                sheet.Cell(1, 1).Value = "Объём документооборота";
+                sheet.Range(1, 1, 1, 5).Merge().Style.Font.SetBold(true).Font.SetFontSize(14)
+                    .Alignment.SetHorizontal(XLAlignmentHorizontalValues.Center);
+                sheet.Cell(2, 1).Value = $"Период: {from:dd.MM.yyyy} — {to:dd.MM.yyyy}; всего: {docs.Count}";
+                sheet.Range(2, 1, 2, 5).Merge();
+
+                int hdr = 4;
+                sheet.Cell(hdr, 1).Value = "Вид документа";
+                sheet.Cell(hdr, 2).Value = "Входящих";
+                sheet.Cell(hdr, 3).Value = "Исходящих";
+                sheet.Cell(hdr, 4).Value = "Внутренних";
+                sheet.Cell(hdr, 5).Value = "Итого";
+                var headerRange = sheet.Range(hdr, 1, hdr, 5);
+                headerRange.Style.Font.Bold = true;
+                headerRange.Style.Fill.BackgroundColor = XLColor.LightSteelBlue;
+                headerRange.Style.Border.BottomBorder = XLBorderStyleValues.Medium;
+
+                var grouped = docs
+                    .GroupBy(d => d.DocumentTypeRef?.Name ?? FormatDocumentType(d.Type))
+                    .OrderBy(g => g.Key)
+                    .ToList();
+
+                int row = hdr + 1;
+                int totalIn = 0, totalOut = 0, totalInt = 0;
+                foreach (var g in grouped)
+                {
+                    int incoming = g.Count(d => d.Direction == DocumentDirection.Incoming);
+                    int outgoing = g.Count(d => d.Direction == DocumentDirection.Outgoing);
+                    int internalCnt = g.Count(d => d.Direction == DocumentDirection.Internal);
+                    sheet.Cell(row, 1).Value = g.Key;
+                    sheet.Cell(row, 2).Value = incoming;
+                    sheet.Cell(row, 3).Value = outgoing;
+                    sheet.Cell(row, 4).Value = internalCnt;
+                    sheet.Cell(row, 5).Value = incoming + outgoing + internalCnt;
+                    totalIn += incoming; totalOut += outgoing; totalInt += internalCnt;
+                    row++;
+                }
+
+                sheet.Cell(row, 1).Value = "Итого";
+                sheet.Cell(row, 2).Value = totalIn;
+                sheet.Cell(row, 3).Value = totalOut;
+                sheet.Cell(row, 4).Value = totalInt;
+                sheet.Cell(row, 5).Value = totalIn + totalOut + totalInt;
+                sheet.Range(row, 1, row, 5).Style.Font.Bold = true;
+                sheet.Range(row, 1, row, 5).Style.Border.TopBorder = XLBorderStyleValues.Medium;
+
+                sheet.Columns().AdjustToContents();
+                workbook.SaveAs(filePath);
+            }
+        }
+
+        public void ExportOverdueTasksReport(string filePath)
+        {
+            if (string.IsNullOrWhiteSpace(filePath))
+                throw new ArgumentException("Путь к файлу обязателен.", nameof(filePath));
+            if (_tasks == null)
+                throw new InvalidOperationException("ReportService не настроен для отчётов СЭД (нет ITaskService).");
+
+            var now = DateTime.Now;
+            var overdue = _tasks.ListOverdue(now);
+
+            using (var workbook = new XLWorkbook())
+            {
+                var sheet = workbook.Worksheets.Add("Просроченные");
+                sheet.Cell(1, 1).Value = "Просроченные поручения";
+                sheet.Range(1, 1, 1, 7).Merge().Style.Font.SetBold(true).Font.SetFontSize(14)
+                    .Alignment.SetHorizontal(XLAlignmentHorizontalValues.Center);
+                sheet.Cell(2, 1).Value = $"Сформировано: {now:dd.MM.yyyy HH:mm}; всего: {overdue.Count}";
+                sheet.Range(2, 1, 2, 7).Merge();
+
+                int hdr = 4;
+                sheet.Cell(hdr, 1).Value = "№ поручения";
+                sheet.Cell(hdr, 2).Value = "Документ";
+                sheet.Cell(hdr, 3).Value = "Автор";
+                sheet.Cell(hdr, 4).Value = "Исполнитель";
+                sheet.Cell(hdr, 5).Value = "Срок";
+                sheet.Cell(hdr, 6).Value = "Дней просрочки";
+                sheet.Cell(hdr, 7).Value = "Описание";
+                var headerRange = sheet.Range(hdr, 1, hdr, 7);
+                headerRange.Style.Font.Bold = true;
+                headerRange.Style.Fill.BackgroundColor = XLColor.LightSteelBlue;
+                headerRange.Style.Border.BottomBorder = XLBorderStyleValues.Medium;
+
+                int row = hdr + 1;
+                foreach (var t in overdue)
+                {
+                    sheet.Cell(row, 1).Value = t.Id;
+                    sheet.Cell(row, 2).Value = t.Document?.RegistrationNumber ?? $"#{t.DocumentId}";
+                    sheet.Cell(row, 3).Value = t.Author?.FullName ?? string.Empty;
+                    sheet.Cell(row, 4).Value = t.Executor?.FullName ?? string.Empty;
+                    sheet.Cell(row, 5).Value = t.Deadline.ToString("dd.MM.yyyy");
+                    sheet.Cell(row, 6).Value = (int)Math.Ceiling((now - t.Deadline).TotalDays);
+                    sheet.Cell(row, 7).Value = t.Description ?? string.Empty;
+                    row++;
+                }
+
+                sheet.Columns().AdjustToContents();
+                sheet.Column(7).Width = Math.Min(80, sheet.Column(7).Width);
+                workbook.SaveAs(filePath);
+            }
+        }
+
+        public void ExportNomenclatureAnalyticsReport(DateTime from, DateTime to, string filePath)
+        {
+            if (string.IsNullOrWhiteSpace(filePath))
+                throw new ArgumentException("Путь к файлу обязателен.", nameof(filePath));
+            if (_nomenclature == null)
+                throw new InvalidOperationException("ReportService не настроен для отчётов СЭД (нет INomenclatureRepository).");
+
+            var docs = _documents.Search(new DocumentSearchFilter { From = from, To = to });
+            var cases = _nomenclature.ListCases(year: null, activeOnly: false);
+            var depts = _nomenclature.ListDepartments();
+
+            using (var workbook = new XLWorkbook())
+            {
+                var sheet = workbook.Worksheets.Add("Номенклатура");
+                sheet.Cell(1, 1).Value = "Аналитика по номенклатуре дел";
+                sheet.Range(1, 1, 1, 6).Merge().Style.Font.SetBold(true).Font.SetFontSize(14)
+                    .Alignment.SetHorizontal(XLAlignmentHorizontalValues.Center);
+                sheet.Cell(2, 1).Value = $"Период: {from:dd.MM.yyyy} — {to:dd.MM.yyyy}";
+                sheet.Range(2, 1, 2, 6).Merge();
+
+                int hdr = 4;
+                sheet.Cell(hdr, 1).Value = "Индекс";
+                sheet.Cell(hdr, 2).Value = "Дело";
+                sheet.Cell(hdr, 3).Value = "Отдел";
+                sheet.Cell(hdr, 4).Value = "Срок хранения, лет";
+                sheet.Cell(hdr, 5).Value = "Документов за период";
+                sheet.Cell(hdr, 6).Value = "Активно";
+                var headerRange = sheet.Range(hdr, 1, hdr, 6);
+                headerRange.Style.Font.Bold = true;
+                headerRange.Style.Fill.BackgroundColor = XLColor.LightSteelBlue;
+                headerRange.Style.Border.BottomBorder = XLBorderStyleValues.Medium;
+
+                int row = hdr + 1;
+                foreach (var c in cases.OrderBy(x => x.Index))
+                {
+                    int count = docs.Count(d => d.NomenclatureCaseId == c.Id);
+                    var dept = depts.FirstOrDefault(x => x.Id == c.DepartmentId);
+                    sheet.Cell(row, 1).Value = c.Index;
+                    sheet.Cell(row, 2).Value = c.Title;
+                    sheet.Cell(row, 3).Value = dept?.Name ?? "—";
+                    sheet.Cell(row, 4).Value = c.RetentionPeriodYears;
+                    sheet.Cell(row, 5).Value = count;
+                    sheet.Cell(row, 6).Value = c.IsActive ? "Да" : "Нет";
+                    row++;
+                }
+
+                sheet.Columns().AdjustToContents();
+                workbook.SaveAs(filePath);
+            }
+        }
+
+        private static string FormatDirection(DocumentDirection d)
+        {
+            switch (d)
+            {
+                case DocumentDirection.Incoming: return "Входящий";
+                case DocumentDirection.Outgoing: return "Исходящий";
+                case DocumentDirection.Internal: return "Внутренний";
+                default: return d.ToString();
+            }
+        }
+
+        private static string FormatDocumentType(DocumentType t)
+        {
+            switch (t)
+            {
+                case DocumentType.Internal: return "Внутренний";
+                case DocumentType.Archive: return "Архивный";
+                case DocumentType.It: return "ИТ";
+                default: return t.ToString();
+            }
+        }
+
+        private static string FormatDocumentStatus(DocumentStatus s)
+        {
+            switch (s)
+            {
+                case DocumentStatus.New: return "Новый";
+                case DocumentStatus.InProgress: return "В работе";
+                case DocumentStatus.OnHold: return "Отложен";
+                case DocumentStatus.Completed: return "Завершён";
+                case DocumentStatus.Cancelled: return "Отменён";
+                default: return s.ToString();
+            }
+        }
+
+        private static string SafeSheetName(string name)
+        {
+            // Excel-ограничения: ≤31 символ, без []:*?/\.
+            var trimmed = (name ?? "Лист").Trim();
+            foreach (var ch in new[] { '[', ']', ':', '*', '?', '/', '\\' })
+                trimmed = trimmed.Replace(ch, ' ');
+            if (trimmed.Length > 31) trimmed = trimmed.Substring(0, 31);
+            return string.IsNullOrEmpty(trimmed) ? "Лист" : trimmed;
         }
 
         private static string FormatArchiveRequestKind(ArchiveRequestKind kind)

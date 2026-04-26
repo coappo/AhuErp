@@ -58,6 +58,7 @@ namespace AhuErp.Core.Services
             {
                 InventoryItemId = item.Id,
                 DocumentId = documentId,
+                BasisDocumentId = documentId,
                 QuantityChanged = quantityChange,
                 TransactionDate = DateTime.Now,
                 InitiatorId = userId

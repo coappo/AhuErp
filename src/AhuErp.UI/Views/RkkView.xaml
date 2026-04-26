@@ -233,10 +233,110 @@
                     </TabItem>
 
                     <TabItem Header="5. Связанные документы и АХД">
-                        <Grid Margin="12">
-                            <TextBlock Text="Связи с АХД-операциями (списания ТМЦ, путевые листы, заявки в архив, IT-тикеты). Создание из РКК — в следующих версиях."
-                                       TextWrapping="Wrap" Foreground="#6B7280" />
-                        </Grid>
+                        <ScrollViewer VerticalScrollBarVisibility="Auto" Margin="12">
+                            <StackPanel>
+                                <TextBlock Text="Создать связанную операцию"
+                                           FontWeight="SemiBold" FontSize="14" Margin="0,0,0,8" />
+
+                                <Border Padding="10" Margin="0,0,0,8"
+                                        Background="#F8FAFC" BorderBrush="#E5E7EB" BorderThickness="1" CornerRadius="4">
+                                    <StackPanel>
+                                        <TextBlock Text="Акт списания ТМЦ" FontWeight="SemiBold" Margin="0,0,0,6" />
+                                        <StackPanel Orientation="Horizontal">
+                                            <TextBlock Text="Позиция:" VerticalAlignment="Center" Margin="0,0,4,0" />
+                                            <ComboBox ItemsSource="{Binding InventoryItems}"
+                                                      SelectedItem="{Binding NewWriteOffItem}"
+                                                      DisplayMemberPath="Name"
+                                                      MinWidth="220" Padding="6" Margin="0,0,12,0" />
+                                            <TextBlock Text="Количество:" VerticalAlignment="Center" Margin="0,0,4,0" />
+                                            <TextBox Text="{Binding NewWriteOffQuantity, UpdateSourceTrigger=PropertyChanged}"
+                                                     Width="80" Padding="6" Margin="0,0,12,0" />
+                                            <Button Content="Создать списание"
+                                                    Command="{Binding CreateInventoryWriteOffCommand}"
+                                                    Padding="10,4" />
+                                        </StackPanel>
+                                    </StackPanel>
+                                </Border>
+
+                                <Border Padding="10" Margin="0,0,0,8"
+                                        Background="#F8FAFC" BorderBrush="#E5E7EB" BorderThickness="1" CornerRadius="4">
+                                    <StackPanel>
+                                        <TextBlock Text="Путевой лист" FontWeight="SemiBold" Margin="0,0,0,6" />
+                                        <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                                            <TextBlock Text="ТС:" VerticalAlignment="Center" Margin="0,0,4,0" />
+                                            <ComboBox ItemsSource="{Binding Vehicles}"
+                                                      SelectedItem="{Binding NewTripVehicle}"
+                                                      DisplayMemberPath="LicensePlate"
+                                                      MinWidth="160" Padding="6" Margin="0,0,12,0" />
+                                            <TextBlock Text="Водитель:" VerticalAlignment="Center" Margin="0,0,4,0" />
+                                            <TextBox Text="{Binding NewTripDriver, UpdateSourceTrigger=PropertyChanged}"
+                                                     Width="200" Padding="6" Margin="0,0,12,0" />
+                                        </StackPanel>
+                                        <StackPanel Orientation="Horizontal">
+                                            <TextBlock Text="С:" VerticalAlignment="Center" Margin="0,0,4,0" />
+                                            <DatePicker SelectedDate="{Binding NewTripStart}" Width="120" Margin="0,0,12,0" />
+                                            <TextBlock Text="По:" VerticalAlignment="Center" Margin="0,0,4,0" />
+                                            <DatePicker SelectedDate="{Binding NewTripEnd}" Width="120" Margin="0,0,12,0" />
+                                            <Button Content="Создать путевой лист"
+                                                    Command="{Binding CreateVehicleTripCommand}"
+                                                    Padding="10,4" />
+                                        </StackPanel>
+                                    </StackPanel>
+                                </Border>
+
+                                <Border Padding="10" Margin="0,0,0,8"
+                                        Background="#F8FAFC" BorderBrush="#E5E7EB" BorderThickness="1" CornerRadius="4">
+                                    <StackPanel Orientation="Horizontal">
+                                        <Button Content="Создать заявку в архив"
+                                                Command="{Binding CreateArchiveRequestCommand}"
+                                                Padding="10,4" Margin="0,0,8,0" />
+                                        <Button Content="Создать IT-тикет"
+                                                Command="{Binding CreateItTicketCommand}"
+                                                Padding="10,4" />
+                                    </StackPanel>
+                                </Border>
+
+                                <TextBlock Text="Существующие связи"
+                                           FontWeight="SemiBold" FontSize="14" Margin="0,12,0,8" />
+
+                                <TextBlock Text="Списания ТМЦ" Margin="0,0,0,4" />
+                                <DataGrid ItemsSource="{Binding RelatedInventoryTx}"
+                                          AutoGenerateColumns="False"
+                                          CanUserAddRows="False" CanUserDeleteRows="False"
+                                          IsReadOnly="True"
+                                          MaxHeight="160" Margin="0,0,0,8">
+                                    <DataGrid.Columns>
+                                        <DataGridTextColumn Header="Дата"
+                                                            Binding="{Binding TransactionDate, StringFormat=dd.MM.yyyy HH:mm}" Width="140" />
+                                        <DataGridTextColumn Header="Позиция"
+                                                            Binding="{Binding InventoryItem.Name}" Width="*" />
+                                        <DataGridTextColumn Header="Изменение"
+                                                            Binding="{Binding QuantityChanged}" Width="100" />
+                                    </DataGrid.Columns>
+                                </DataGrid>
+
+                                <TextBlock Text="Путевые листы" Margin="0,0,0,4" />
+                                <DataGrid ItemsSource="{Binding RelatedTrips}"
+                                          AutoGenerateColumns="False"
+                                          CanUserAddRows="False" CanUserDeleteRows="False"
+                                          IsReadOnly="True"
+                                          MaxHeight="160">
+                                    <DataGrid.Columns>
+                                        <DataGridTextColumn Header="С"
+                                                            Binding="{Binding StartDate, StringFormat=dd.MM.yyyy HH:mm}" Width="140" />
+                                        <DataGridTextColumn Header="По"
+                                                            Binding="{Binding EndDate, StringFormat=dd.MM.yyyy HH:mm}" Width="140" />
+                                        <DataGridTextColumn Header="ТС"
+                                                            Binding="{Binding Vehicle.LicensePlate}" Width="120" />
+                                        <DataGridTextColumn Header="Водитель"
+                                                            Binding="{Binding DriverName}" Width="*" />
+                                    </DataGrid.Columns>
+                                </DataGrid>
+
+                                <TextBlock Text="{Binding ErrorMessage}"
+                                           Foreground="#B91C1C" Margin="0,8,0,0" TextWrapping="Wrap" />
+                            </StackPanel>
+                        </ScrollViewer>
                     </TabItem>
 
                     <TabItem Header="6. История и аудит">

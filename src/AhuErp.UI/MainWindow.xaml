@@ -43,6 +43,12 @@
         <DataTemplate DataType="{x:Type vm:AuditJournalViewModel}">
             <views:AuditJournalView />
         </DataTemplate>
+        <DataTemplate DataType="{x:Type vm:JournalViewModel}">
+            <views:JournalView />
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type vm:SearchViewModel}">
+            <views:SearchView />
+        </DataTemplate>
     </Window.Resources>
 
     <Grid>

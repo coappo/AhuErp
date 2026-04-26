@@ -83,5 +83,84 @@ namespace AhuErp.Core.Services
             _ctx.Documents.Remove(doc);
             _ctx.SaveChanges();
         }
+
+        public IReadOnlyList<Document> Search(DocumentSearchFilter filter)
+        {
+            if (filter == null) filter = new DocumentSearchFilter();
+            IQueryable<Document> q = _ctx.Documents;
+
+            if (filter.Direction.HasValue)
+            {
+                var dir = filter.Direction.Value;
+                q = q.Where(d => d.Direction == dir);
+            }
+            if (filter.StatusIn != null && filter.StatusIn.Length > 0)
+            {
+                var statuses = filter.StatusIn;
+                q = q.Where(d => statuses.Contains(d.Status));
+            }
+            else if (filter.Status.HasValue)
+            {
+                var st = filter.Status.Value;
+                q = q.Where(d => d.Status == st);
+            }
+            if (filter.NomenclatureCaseId.HasValue)
+            {
+                var caseId = filter.NomenclatureCaseId.Value;
+                q = q.Where(d => d.NomenclatureCaseId == caseId);
+            }
+            if (filter.DocumentTypeRefId.HasValue)
+            {
+                var typeId = filter.DocumentTypeRefId.Value;
+                q = q.Where(d => d.DocumentTypeRefId == typeId);
+            }
+            if (filter.AssignedEmployeeId.HasValue)
+            {
+                var eid = filter.AssignedEmployeeId.Value;
+                q = q.Where(d => d.AssignedEmployeeId == eid);
+            }
+            if (filter.RegisteredOnly)
+            {
+                q = q.Where(d => d.RegistrationNumber != null && d.RegistrationDate.HasValue);
+            }
+            if (filter.From.HasValue)
+            {
+                var from = filter.From.Value;
+                q = q.Where(d => (d.RegistrationDate ?? d.CreationDate) >= from);
+            }
+            if (filter.To.HasValue)
+            {
+                var to = filter.To.Value;
+                q = q.Where(d => (d.RegistrationDate ?? d.CreationDate) <= to);
+            }
+            if (!string.IsNullOrWhiteSpace(filter.Correspondent))
+            {
+                var c = filter.Correspondent.Trim();
+                q = q.Where(d => d.Correspondent != null && d.Correspondent.Contains(c));
+            }
+            if (!string.IsNullOrWhiteSpace(filter.Text))
+            {
+                var t = filter.Text.Trim();
+                q = q.Where(d =>
+                       (d.Title != null && d.Title.Contains(t))
+                    || (d.Summary != null && d.Summary.Contains(t))
+                    || (d.RegistrationNumber != null && d.RegistrationNumber.Contains(t))
+                    || (d.Correspondent != null && d.Correspondent.Contains(t))
+                    || (d.IncomingNumber != null && d.IncomingNumber.Contains(t)));
+            }
+
+            var list = q
+                .OrderByDescending(d => d.RegistrationDate ?? d.CreationDate)
+                .ThenByDescending(d => d.Id)
+                .ToList();
+
+            // Просрочка вычисляется на стороне клиента (используем DateTime.Now, что не транслируется в SQL).
+            if (filter.OverdueOnly)
+            {
+                var now = DateTime.Now;
+                list = list.Where(d => d.IsOverdue(now)).ToList();
+            }
+            return list.AsReadOnly();
+        }
     }
 }
