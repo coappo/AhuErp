@@ -25,6 +25,8 @@ namespace AhuErp.Core.Services
                 string.Equals(e.FullName, fullName, StringComparison.OrdinalIgnoreCase));
         }
 
+        public Employee GetById(int id) => _employees.FirstOrDefault(e => e.Id == id);
+
         public void Add(Employee employee)
         {
             if (employee == null) throw new ArgumentNullException(nameof(employee));

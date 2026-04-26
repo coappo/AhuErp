@@ -65,14 +65,48 @@ namespace AhuErp.Core.Services
         public void Update(Document document)
         {
             if (document == null) throw new ArgumentNullException(nameof(document));
+            var entry = _ctx.Entry(document);
             // Если сущность уже в трекере (типичный сценарий — её достали через Find/List
             // и тут же редактируют) — EF6 уже знает об изменениях. Если detached
             // (после рестарта контекста или при ручной сборке) — присоединяем явно.
-            if (_ctx.Entry(document).State == EntityState.Detached)
+            if (entry.State == EntityState.Detached)
             {
                 _ctx.Documents.Attach(document);
-                _ctx.Entry(document).State = EntityState.Modified;
+                entry = _ctx.Entry(document);
+                entry.State = EntityState.Modified;
             }
+
+            // Phase 8 — guard на блокировку подписью.
+            bool wasLocked = entry.OriginalValues != null
+                ? (bool)entry.OriginalValues[nameof(Document.IsLocked)]
+                : document.IsLocked;
+            if (wasLocked)
+            {
+                string[] immutable =
+                {
+                    nameof(Document.Type), nameof(Document.Direction),
+                    nameof(Document.Title), nameof(Document.Summary),
+                    nameof(Document.Correspondent), nameof(Document.IncomingNumber),
+                    nameof(Document.IncomingDate),
+                    nameof(Document.RegistrationNumber), nameof(Document.RegistrationDate),
+                    nameof(Document.DocumentTypeRefId), nameof(Document.NomenclatureCaseId),
+                    nameof(Document.AuthorId), nameof(Document.CreationDate),
+                    nameof(Document.Deadline), nameof(Document.BasisDocumentId),
+                    nameof(Document.ApprovalStatus),
+                };
+                foreach (var prop in immutable)
+                {
+                    var orig = entry.OriginalValues[prop];
+                    var curr = entry.CurrentValues[prop];
+                    if (!Equals(orig, curr))
+                    {
+                        throw new InvalidOperationException(
+                            "Документ заблокирован подписью: разрешено менять только " +
+                            "статус, исполнителя и гриф доступа.");
+                    }
+                }
+            }
+
             _ctx.SaveChanges();
         }
 

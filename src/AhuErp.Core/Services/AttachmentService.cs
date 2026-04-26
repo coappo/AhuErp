@@ -25,17 +25,20 @@ namespace AhuErp.Core.Services
         private readonly IDocumentRepository _documents;
         private readonly IFileStorageService _storage;
         private readonly IAuditService _audit;
+        private readonly ISignatureService _signatures;
 
         public AttachmentService(
             IAttachmentRepository repository,
             IDocumentRepository documents,
             IFileStorageService storage,
-            IAuditService audit)
+            IAuditService audit,
+            ISignatureService signatures = null)
         {
             _repository = repository ?? throw new ArgumentNullException(nameof(repository));
             _documents = documents ?? throw new ArgumentNullException(nameof(documents));
             _storage = storage ?? throw new ArgumentNullException(nameof(storage));
             _audit = audit ?? throw new ArgumentNullException(nameof(audit));
+            _signatures = signatures;
         }
 
         public DocumentAttachment Upload(int documentId, Stream content, string fileName,
@@ -113,6 +116,14 @@ namespace AhuErp.Core.Services
 
             _audit.Record(AuditActionType.AttachmentVersioned, nameof(DocumentAttachment), version.Id,
                 uploadedById, newValues: $"GroupId={attachmentGroupId}; Version={nextVersion}");
+
+            // Phase 8 — загрузка новой версии автоматически отзывает ПЭП/НЭП
+            // (квалифицированные подписи КЭП требуют ручного отзыва оператором).
+            if (_signatures != null && doc != null)
+            {
+                _signatures.RevokeAllNonQualified(doc.Id, uploadedById,
+                    reason: $"Загружена новая версия #{nextVersion} вложения #{attachmentGroupId}");
+            }
 
             return version;
         }

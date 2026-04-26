@@ -34,6 +34,10 @@ namespace AhuErp.Core.Models
         ArchiveRequestProcessed = 52,
         ItTicketResolved = 53,
 
+        SignatureAdded = 60,
+        SignatureRevoked = 61,
+        DocumentLocked = 62,
+
         UserLogin = 90,
         UserLogout = 91,
         Other = 99

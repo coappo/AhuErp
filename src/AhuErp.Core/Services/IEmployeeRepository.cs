@@ -14,5 +14,8 @@ namespace AhuErp.Core.Services
         /// если сотрудника нет.
         /// </summary>
         Employee FindByFullName(string fullName);
+
+        /// <summary>Сотрудник по идентификатору; <c>null</c>, если нет.</summary>
+        Employee GetById(int id);
     }
 }

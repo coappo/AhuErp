@@ -25,5 +25,7 @@ namespace AhuErp.Core.Services
             if (string.IsNullOrWhiteSpace(fullName)) return null;
             return _ctx.Employees.FirstOrDefault(e => e.FullName == fullName);
         }
+
+        public Employee GetById(int id) => _ctx.Employees.Find(id);
     }
 }
