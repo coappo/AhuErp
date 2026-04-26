@@ -49,15 +49,19 @@ namespace AhuErp.UI.ViewModels
         private string query;
 
         [ObservableProperty]
+        [NotifyCanExecuteChangedFor(nameof(SearchCommand))]
         private DocumentDirection? selectedDirection;
 
         [ObservableProperty]
+        [NotifyCanExecuteChangedFor(nameof(SearchCommand))]
         private DocumentStatus? selectedStatus;
 
         [ObservableProperty]
+        [NotifyCanExecuteChangedFor(nameof(SearchCommand))]
         private DateTime? periodFrom;
 
         [ObservableProperty]
+        [NotifyCanExecuteChangedFor(nameof(SearchCommand))]
         private DateTime? periodTo;
 
         [ObservableProperty]

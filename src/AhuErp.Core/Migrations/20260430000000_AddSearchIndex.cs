@@ -52,7 +52,7 @@ BEGIN TRY
     BEGIN
         EXEC('CREATE FULLTEXT CATALOG AhuErpFt');
         EXEC('CREATE FULLTEXT INDEX ON dbo.AttachmentTextIndices(ExtractedText)
-              KEY INDEX PK_dbo_AttachmentTextIndices ON AhuErpFt');
+              KEY INDEX [PK_dbo.AttachmentTextIndices] ON AhuErpFt');
     END
 END TRY
 BEGIN CATCH

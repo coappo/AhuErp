@@ -25,14 +25,15 @@
                               IsChecked="{Binding SaveFilterShared}" Margin="0,0,0,4" />
                     <Button Content="Сохранить фильтр…" Command="{Binding SaveFilterCommand}" Padding="6,4" />
                 </StackPanel>
-                <ListBox ItemsSource="{Binding SavedSearches}"
-                         SelectedItem="{Binding SelectedSavedSearch}"
-                         DisplayMemberPath="Name"
-                         Margin="0,0,0,8" />
                 <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Margin="0,4,0,0">
                     <Button Content="Применить" Command="{Binding ApplySavedSearchCommand}" Padding="6,4" Margin="0,0,4,0" />
                     <Button Content="Удалить" Command="{Binding DeleteSavedSearchCommand}" Padding="6,4" />
                 </StackPanel>
+                <!-- LastChild: ListBox занимает оставшееся вертикальное пространство. -->
+                <ListBox ItemsSource="{Binding SavedSearches}"
+                         SelectedItem="{Binding SelectedSavedSearch}"
+                         DisplayMemberPath="Name"
+                         Margin="0,0,0,8" />
             </DockPanel>
         </Border>
 
