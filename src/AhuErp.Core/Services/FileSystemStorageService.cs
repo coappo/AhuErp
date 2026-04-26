@@ -76,6 +76,11 @@ namespace AhuErp.Core.Services
             // Защита от выхода за корень хранилища (path traversal).
             var combined = Path.GetFullPath(Path.Combine(_root, rel));
             var rootFull = Path.GetFullPath(_root);
+            // Гарантируем границу директории: иначе путь
+            // C:\AhuErp\Documents_Evil\... прошёл бы префикс-проверку
+            // как сосед каталога C:\AhuErp\Documents.
+            if (!rootFull.EndsWith(Path.DirectorySeparatorChar.ToString()))
+                rootFull += Path.DirectorySeparatorChar;
             if (!combined.StartsWith(rootFull, StringComparison.OrdinalIgnoreCase))
                 throw new InvalidOperationException("Недопустимый путь хранения.");
             return combined;

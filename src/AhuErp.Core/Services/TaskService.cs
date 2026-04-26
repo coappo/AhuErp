@@ -160,11 +160,18 @@ namespace AhuErp.Core.Services
 
         public IReadOnlyList<DocumentTask> ListOverdue(DateTime now, int? departmentId = null)
         {
-            return _tasks.ListAll()
-                .Where(t => t.IsOverdue(now))
-                .OrderBy(t => t.Deadline)
-                .ToList()
-                .AsReadOnly();
+            IEnumerable<DocumentTask> overdue = _tasks.ListAll().Where(t => t.IsOverdue(now));
+            if (departmentId.HasValue)
+            {
+                // Привязка отдела к поручению идёт через дело номенклатуры
+                // (NomenclatureCase.DepartmentId) родительского документа —
+                // другого источника отдела у поручения сейчас нет.
+                var deptId = departmentId.Value;
+                overdue = overdue.Where(t => t.Document != null
+                                             && t.Document.NomenclatureCase != null
+                                             && t.Document.NomenclatureCase.DepartmentId == deptId);
+            }
+            return overdue.OrderBy(t => t.Deadline).ToList().AsReadOnly();
         }
 
         public ExecutionDisciplineReport BuildDisciplineReport(DateTime from, DateTime to)

@@ -44,9 +44,20 @@ namespace AhuErp.Core.Services
             lock (_sync)
             {
                 var previous = _repository.GetLast();
+                // SQL Server DATETIME имеет точность ~3.33 мс и округляет
+                // значение при сохранении. Если бы hash считался от точного
+                // DateTime.UtcNow (с тиковой точностью), после round-trip
+                // через БД пересчёт hash расходился бы со сохранённым, и
+                // VerifyChain() сообщал бы ложную «коррупцию» первой записи.
+                // Поэтому усекаем timestamp до целых секунд ДО вычисления
+                // хеша — это значение SQL Server возвращает без потерь.
+                var ticksPerSecond = TimeSpan.TicksPerSecond;
+                var truncated = new DateTime(
+                    DateTime.UtcNow.Ticks / ticksPerSecond * ticksPerSecond,
+                    DateTimeKind.Utc);
                 var log = new AuditLog
                 {
-                    Timestamp = DateTime.UtcNow,
+                    Timestamp = truncated,
                     UserId = userId,
                     ActionType = actionType,
                     EntityType = entityType,
