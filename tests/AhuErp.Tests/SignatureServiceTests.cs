@@ -186,6 +186,25 @@ namespace AhuErp.Tests
         }
 
         [Fact]
+        public void Verify_returns_true_after_legitimate_access_level_change()
+        {
+            // Регрессия по Devin Review #4 (RED): AccessLevel был в подписанном
+            // payload, но whitelist лок-гарда позволяет его менять. Verify
+            // обязан оставаться true после смены грифа.
+            var doc = CreateDoc();
+            var att = UploadAttachment(doc.Id);
+            var sig = _signatures.Sign(doc.Id, att.Id, _signer.Id, SignatureKind.Qualified,
+                certificateThumbprint: "CERT");
+            Assert.True(_signatures.Verify(sig.Id));
+
+            var loaded = _docs.GetById(doc.Id);
+            loaded.AccessLevel = DocumentAccessLevel.Internal;
+            _docs.Update(loaded);
+
+            Assert.True(_signatures.Verify(sig.Id));
+        }
+
+        [Fact]
         public void Locked_document_allows_approval_status_changes()
         {
             // Регрессия по Devin Review #3 (RED): ApprovalStatus был ошибочно

@@ -597,6 +597,7 @@ namespace AhuErp.UI.ViewModels
             try
             {
                 var actor = _auth.CurrentEmployee?.Id ?? 0;
+                if (actor == 0) { ErrorMessage = "Не определён текущий сотрудник."; return; }
                 _signatures.Revoke(SelectedSignature.Id, actor,
                     SignReason ?? "Отзыв из РКК");
                 SignReason = null;

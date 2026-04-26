@@ -208,7 +208,9 @@ namespace AhuErp.Core.Services
             sb.Append(doc.Title).Append('|');
             sb.Append(doc.RegistrationNumber).Append('|');
             sb.Append(doc.Type).Append('|');
-            sb.Append(doc.AccessLevel).Append('|');
+            // AccessLevel намеренно НЕ включён в slice: гриф доступа разрешено
+            // менять и после блокировки КЭП (whitelist в DocumentLockGuard /
+            // EfDocumentRepository), а Verify не должен из-за этого падать.
             sb.Append(doc.AuthorId).Append('|');
             sb.Append(doc.CreationDate.Ticks).Append('|');
             sb.Append(doc.Deadline.Ticks).Append('|');
