@@ -259,24 +259,29 @@ namespace AhuErp.Core.Services
             if (string.IsNullOrWhiteSpace(filePath))
                 throw new ArgumentException("Путь к файлу обязателен.", nameof(filePath));
 
-            var docs = _documents.Search(new DocumentSearchFilter { From = from, To = to });
+            // `to` обычно приходит как полночь (DatePicker), поэтому
+            // расширяем до конца дня — иначе документы за последний день
+            // периода не попадут в выборку (`<= to` в Search).
+            var toInclusive = ExtendToEndOfDay(to);
+            var docs = _documents.Search(new DocumentSearchFilter { From = from, To = toInclusive });
 
             using (var workbook = new XLWorkbook())
             {
                 var sheet = workbook.Worksheets.Add("Объём");
                 sheet.Cell(1, 1).Value = "Объём документооборота";
-                sheet.Range(1, 1, 1, 5).Merge().Style.Font.SetBold(true).Font.SetFontSize(14)
+                sheet.Range(1, 1, 1, 6).Merge().Style.Font.SetBold(true).Font.SetFontSize(14)
                     .Alignment.SetHorizontal(XLAlignmentHorizontalValues.Center);
                 sheet.Cell(2, 1).Value = $"Период: {from:dd.MM.yyyy} — {to:dd.MM.yyyy}; всего: {docs.Count}";
-                sheet.Range(2, 1, 2, 5).Merge();
+                sheet.Range(2, 1, 2, 6).Merge();
 
                 int hdr = 4;
                 sheet.Cell(hdr, 1).Value = "Вид документа";
                 sheet.Cell(hdr, 2).Value = "Входящих";
                 sheet.Cell(hdr, 3).Value = "Исходящих";
                 sheet.Cell(hdr, 4).Value = "Внутренних";
-                sheet.Cell(hdr, 5).Value = "Итого";
-                var headerRange = sheet.Range(hdr, 1, hdr, 5);
+                sheet.Cell(hdr, 5).Value = "Распорядительных";
+                sheet.Cell(hdr, 6).Value = "Итого";
+                var headerRange = sheet.Range(hdr, 1, hdr, 6);
                 headerRange.Style.Font.Bold = true;
                 headerRange.Style.Fill.BackgroundColor = XLColor.LightSteelBlue;
                 headerRange.Style.Border.BottomBorder = XLBorderStyleValues.Medium;
@@ -287,18 +292,21 @@ namespace AhuErp.Core.Services
                     .ToList();
 
                 int row = hdr + 1;
-                int totalIn = 0, totalOut = 0, totalInt = 0;
+                int totalIn = 0, totalOut = 0, totalInt = 0, totalDir = 0;
                 foreach (var g in grouped)
                 {
                     int incoming = g.Count(d => d.Direction == DocumentDirection.Incoming);
                     int outgoing = g.Count(d => d.Direction == DocumentDirection.Outgoing);
                     int internalCnt = g.Count(d => d.Direction == DocumentDirection.Internal);
+                    int directiveCnt = g.Count(d => d.Direction == DocumentDirection.Directive);
                     sheet.Cell(row, 1).Value = g.Key;
                     sheet.Cell(row, 2).Value = incoming;
                     sheet.Cell(row, 3).Value = outgoing;
                     sheet.Cell(row, 4).Value = internalCnt;
-                    sheet.Cell(row, 5).Value = incoming + outgoing + internalCnt;
-                    totalIn += incoming; totalOut += outgoing; totalInt += internalCnt;
+                    sheet.Cell(row, 5).Value = directiveCnt;
+                    sheet.Cell(row, 6).Value = incoming + outgoing + internalCnt + directiveCnt;
+                    totalIn += incoming; totalOut += outgoing;
+                    totalInt += internalCnt; totalDir += directiveCnt;
                     row++;
                 }
 
@@ -306,9 +314,10 @@ namespace AhuErp.Core.Services
                 sheet.Cell(row, 2).Value = totalIn;
                 sheet.Cell(row, 3).Value = totalOut;
                 sheet.Cell(row, 4).Value = totalInt;
-                sheet.Cell(row, 5).Value = totalIn + totalOut + totalInt;
-                sheet.Range(row, 1, row, 5).Style.Font.Bold = true;
-                sheet.Range(row, 1, row, 5).Style.Border.TopBorder = XLBorderStyleValues.Medium;
+                sheet.Cell(row, 5).Value = totalDir;
+                sheet.Cell(row, 6).Value = totalIn + totalOut + totalInt + totalDir;
+                sheet.Range(row, 1, row, 6).Style.Font.Bold = true;
+                sheet.Range(row, 1, row, 6).Style.Border.TopBorder = XLBorderStyleValues.Medium;
 
                 sheet.Columns().AdjustToContents();
                 workbook.SaveAs(filePath);
@@ -373,7 +382,11 @@ namespace AhuErp.Core.Services
             if (_nomenclature == null)
                 throw new InvalidOperationException("ReportService не настроен для отчётов СЭД (нет INomenclatureRepository).");
 
-            var docs = _documents.Search(new DocumentSearchFilter { From = from, To = to });
+            // Аналогично ExportDocumentVolumeReport: расширяем `to` до конца
+            // дня, чтобы захватить документы, зарегистрированные после полуночи
+            // на последний день периода.
+            var toInclusive = ExtendToEndOfDay(to);
+            var docs = _documents.Search(new DocumentSearchFilter { From = from, To = toInclusive });
             var cases = _nomenclature.ListCases(year: null, activeOnly: false);
             var depts = _nomenclature.ListDepartments();
 
@@ -424,8 +437,23 @@ namespace AhuErp.Core.Services
                 case DocumentDirection.Incoming: return "Входящий";
                 case DocumentDirection.Outgoing: return "Исходящий";
                 case DocumentDirection.Internal: return "Внутренний";
+                case DocumentDirection.Directive: return "Распорядительный";
                 default: return d.ToString();
             }
+        }
+
+        /// <summary>
+        /// Возвращает дату-время «конец суток» для значения, пришедшего из
+        /// DatePicker (где время = 00:00). Используется при формировании
+        /// отчётов с периодом, чтобы полуинтервал работал ожидаемо «по дни
+        /// включительно». Если на вход уже передан момент времени с ненулевым
+        /// временем — возвращается без изменений.
+        /// </summary>
+        private static DateTime ExtendToEndOfDay(DateTime to)
+        {
+            if (to.TimeOfDay == TimeSpan.Zero)
+                return to.Date.AddDays(1).AddTicks(-1);
+            return to;
         }
 
         private static string FormatDocumentType(DocumentType t)
