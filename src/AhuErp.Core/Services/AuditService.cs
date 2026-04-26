@@ -100,7 +100,11 @@ namespace AhuErp.Core.Services
         {
             var canonical = string.Join("|", new[]
             {
-                log.Timestamp.ToString("O", CultureInfo.InvariantCulture),
+                // Используем фиксированный формат без timezone-суффикса:
+                // "O" с DateTimeKind.Utc даёт "...Z", а после round-trip
+                // через SQL Server DATETIME (Kind становится Unspecified)
+                // суффикс пропадает — и хеш расходится с сохранённым.
+                log.Timestamp.ToString("yyyy-MM-dd'T'HH:mm:ss.fffffff", CultureInfo.InvariantCulture),
                 log.UserId?.ToString(CultureInfo.InvariantCulture) ?? string.Empty,
                 ((int)log.ActionType).ToString(CultureInfo.InvariantCulture),
                 log.EntityType ?? string.Empty,
