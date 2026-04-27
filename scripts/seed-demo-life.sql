@@ -254,9 +254,9 @@ UPDATE dbo.DocumentAttachments SET IsCurrentVersion = 0 WHERE Id = 7;
 
 /* ============================================================================
  * 6. РЕЗОЛЮЦИИ И ЗАДАЧИ (Phase 7)
- *    DocumentTaskStatus: New=0, InProgress=1, Completed=2, Cancelled=3 — но
- *    на схеме это просто INT. Используем 0=New, 1=InProgress, 2=Completed,
- *    3=Cancelled, согласно DocumentTask.cs.
+ *    DocumentTaskStatus (см. AhuErp.Core/Models/DocumentTaskStatus.cs):
+ *      New=0, InProgress=1, OnReview=2, Completed=3, Cancelled=4, Overdue=5.
+ *    В БД хранится как INT. Здесь используем фактические значения enum'а.
  * ========================================================================== */
 SET IDENTITY_INSERT dbo.DocumentResolutions ON;
 INSERT INTO dbo.DocumentResolutions (Id, DocumentId, AuthorId, Text, IssuedAt) VALUES
