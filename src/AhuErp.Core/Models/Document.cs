@@ -81,6 +81,20 @@ namespace AhuErp.Core.Models
 
         public ApprovalRouteStatus ApprovalStatus { get; set; } = ApprovalRouteStatus.Draft;
 
+        /// <summary>
+        /// Phase 8 — документ заблокирован к редактированию основных полей
+        /// после первой Qualified-подписи или при <see cref="DocumentStatus.Completed"/>.
+        /// Изменять можно только статус, исполнителя и гриф доступа.
+        /// </summary>
+        public bool IsLocked { get; set; }
+
+        /// <summary>
+        /// Phase 8 — актуальная подписанная версия PDF/DOCX-вложения,
+        /// фиксируется в момент подписания КЭП.
+        /// </summary>
+        public int? CurrentVersionAttachmentId { get; set; }
+        public virtual DocumentAttachment CurrentVersionAttachment { get; set; }
+
         public virtual ICollection<VehicleTrip> VehicleTrips { get; set; } = new HashSet<VehicleTrip>();
 
         public virtual ICollection<DocumentAttachment> Attachments { get; set; } = new HashSet<DocumentAttachment>();

@@ -23,6 +23,7 @@ namespace AhuErp.Core.Services
         private readonly IDocumentRepository _documents;
         private readonly IAuditService _audit;
         private readonly IWorkflowService _workflow;
+        private readonly ISignatureService _signatures;
         private readonly ISubstitutionService _substitution;
         private readonly INotificationService _notifications;
 
@@ -31,6 +32,7 @@ namespace AhuErp.Core.Services
             IDocumentRepository documents,
             IAuditService audit,
             IWorkflowService workflow = null,
+            ISignatureService signatures = null,
             ISubstitutionService substitution = null,
             INotificationService notifications = null)
         {
@@ -38,6 +40,7 @@ namespace AhuErp.Core.Services
             _documents = documents ?? throw new ArgumentNullException(nameof(documents));
             _audit = audit ?? throw new ArgumentNullException(nameof(audit));
             _workflow = workflow;
+            _signatures = signatures;
             _substitution = substitution;
             _notifications = notifications;
         }
@@ -163,6 +166,22 @@ namespace AhuErp.Core.Services
                 doc.ApprovalStatus = ApprovalRouteStatus.Completed;
                 _documents.Update(doc);
                 _workflow?.OnApprovalRouteCompleted(doc.Id, actorId);
+
+                // Phase 8 — последний этап одобрен → автоматически ставим
+                // ПЭП от имени системы (от того, кто принял финальное решение).
+                if (_signatures != null)
+                {
+                    try
+                    {
+                        _signatures.Sign(doc.Id, attachmentId: null, signerId: actorId,
+                            kind: SignatureKind.Simple,
+                            reason: $"Согласовано по маршруту, этап #{approval.Id}");
+                    }
+                    catch (InvalidOperationException)
+                    {
+                        // Подпись уже стояла или сотрудник недоступен — не валим бизнес-операцию.
+                    }
+                }
             }
 
             // Phase 9: уведомить автора документа о принятом решении.

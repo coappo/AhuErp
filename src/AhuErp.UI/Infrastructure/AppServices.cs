@@ -73,6 +73,18 @@ namespace AhuErp.UI.Infrastructure
             services.AddSingleton<IAttachmentRepository, EfAttachmentRepository>();
             services.AddSingleton<IAttachmentService, AttachmentService>();
 
+            // Phase 8 — электронные подписи и блокировка документа.
+            services.AddSingleton<ISignatureRepository, EfSignatureRepository>();
+            services.AddSingleton<ICryptoProvider>(sp => new HmacCryptoProvider());
+            services.AddSingleton<ISignatureService>(sp => new SignatureService(
+                sp.GetRequiredService<ISignatureRepository>(),
+                sp.GetRequiredService<IDocumentRepository>(),
+                sp.GetRequiredService<IAttachmentRepository>(),
+                sp.GetRequiredService<IEmployeeRepository>(),
+                sp.GetRequiredService<IAuditService>(),
+                hmac: sp.GetRequiredService<ICryptoProvider>(),
+                qualified: new CryptoProStub()));
+
             services.AddSingleton<ITaskRepository, EfTaskRepository>();
             services.AddSingleton<IWorkflowService, WorkflowService>();
             services.AddSingleton<ITaskService, TaskService>();
