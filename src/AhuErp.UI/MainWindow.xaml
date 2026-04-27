@@ -49,6 +49,12 @@
         <DataTemplate DataType="{x:Type vm:SearchViewModel}">
             <views:SearchView />
         </DataTemplate>
+        <DataTemplate DataType="{x:Type vm:OrgStructureViewModel}">
+            <views:OrgStructureView />
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type vm:SubstitutionsViewModel}">
+            <views:SubstitutionsView />
+        </DataTemplate>
     </Window.Resources>
 
     <Grid>

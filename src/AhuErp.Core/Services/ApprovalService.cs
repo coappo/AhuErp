@@ -23,17 +23,20 @@ namespace AhuErp.Core.Services
         private readonly IDocumentRepository _documents;
         private readonly IAuditService _audit;
         private readonly IWorkflowService _workflow;
+        private readonly ISubstitutionService _substitution;
 
         public ApprovalService(
             IApprovalRepository repository,
             IDocumentRepository documents,
             IAuditService audit,
-            IWorkflowService workflow = null)
+            IWorkflowService workflow = null,
+            ISubstitutionService substitution = null)
         {
             _repository = repository ?? throw new ArgumentNullException(nameof(repository));
             _documents = documents ?? throw new ArgumentNullException(nameof(documents));
             _audit = audit ?? throw new ArgumentNullException(nameof(audit));
             _workflow = workflow;
+            _substitution = substitution;
         }
 
         public IReadOnlyList<ApprovalRouteTemplate> ListTemplates(bool activeOnly = true)
@@ -73,15 +76,24 @@ namespace AhuErp.Core.Services
                     "Этапы шаблона должны иметь конкретного согласующего (ApproverEmployeeId).");
 
             var approvals = new List<DocumentApproval>();
+            var now = DateTime.Now;
             foreach (var stage in stages)
             {
+                // Phase 11: согласующего может замещать другой сотрудник.
+                int actualApproverId = stage.ApproverEmployeeId.Value;
+                if (_substitution != null)
+                {
+                    actualApproverId = _substitution.ResolveActualExecutor(
+                        actualApproverId, now, SubstitutionScope.ApprovalsOnly);
+                }
+
                 var approval = _repository.AddApproval(new DocumentApproval
                 {
                     DocumentId = doc.Id,
                     StageId = stage.Id,
                     Order = stage.Order,
                     IsParallel = stage.IsParallel,
-                    ApproverId = stage.ApproverEmployeeId.Value,
+                    ApproverId = actualApproverId,
                     Decision = ApprovalDecision.Pending
                 });
                 approvals.Add(approval);

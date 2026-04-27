@@ -34,6 +34,23 @@ namespace AhuErp.Core.Models
         ArchiveRequestProcessed = 52,
         ItTicketResolved = 53,
 
+        // Phase 8 — электронные подписи и блокировка документа.
+        SignatureAdded = 60,
+        SignatureRevoked = 61,
+        DocumentLocked = 62,
+
+        // Phase 9 — нотификации.
+        NotificationSent = 70,
+
+        // Phase 11 — оргструктура и замещения.
+        SubstitutionCreated = 80,
+        SubstitutionCancelled = 81,
+        TaskDelegated = 82,
+
+        // Phase 10 / 12 — поиск и регламентированная отчётность.
+        IndexRebuilt = 85,
+        ReportGenerated = 86,
+
         UserLogin = 90,
         UserLogout = 91,
         Other = 99

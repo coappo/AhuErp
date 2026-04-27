@@ -16,17 +16,23 @@ namespace AhuErp.Core.Services
         private readonly IDocumentRepository _documents;
         private readonly IAuditService _audit;
         private readonly IWorkflowService _workflow;
+        private readonly ISubstitutionService _substitution;
+        private readonly IDelegationRepository _delegations;
 
         public TaskService(
             ITaskRepository tasks,
             IDocumentRepository documents,
             IAuditService audit,
-            IWorkflowService workflow = null)
+            IWorkflowService workflow = null,
+            ISubstitutionService substitution = null,
+            IDelegationRepository delegations = null)
         {
             _tasks = tasks ?? throw new ArgumentNullException(nameof(tasks));
             _documents = documents ?? throw new ArgumentNullException(nameof(documents));
             _audit = audit ?? throw new ArgumentNullException(nameof(audit));
             _workflow = workflow;
+            _substitution = substitution;
+            _delegations = delegations;
         }
 
         public DocumentResolution AddResolution(int documentId, int authorId, string text)
@@ -70,13 +76,24 @@ namespace AhuErp.Core.Services
                 ?? throw new InvalidOperationException($"Документ #{documentId} не найден.");
             if (executorId <= 0) throw new ArgumentException("Исполнитель обязателен.");
 
+            // Phase 11: при наличии активного замещения для исполнителя — задача
+            // фактически достаётся заместителю. Признак замещения фиксируется
+            // в журнале TaskDelegations (если зарегистрирован репозиторий) и
+            // в аудите.
+            int actualExecutorId = executorId;
+            if (_substitution != null)
+            {
+                actualExecutorId = _substitution.ResolveActualExecutor(
+                    executorId, DateTime.Now, SubstitutionScope.TasksOnly);
+            }
+
             var task = new DocumentTask
             {
                 DocumentId = doc.Id,
                 ResolutionId = resolutionId,
                 ParentTaskId = parentTaskId,
                 AuthorId = authorId,
-                ExecutorId = executorId,
+                ExecutorId = actualExecutorId,
                 ControllerId = controllerId,
                 CoExecutors = coExecutors,
                 Description = description,
@@ -88,7 +105,23 @@ namespace AhuErp.Core.Services
             task = _tasks.AddTask(task);
 
             _audit.Record(AuditActionType.TaskAssigned, nameof(DocumentTask), task.Id, authorId,
-                newValues: $"DocumentId={doc.Id}; ExecutorId={executorId}; Deadline={deadline:o}");
+                newValues: $"DocumentId={doc.Id}; ExecutorId={actualExecutorId}; Deadline={deadline:o}");
+
+            if (actualExecutorId != executorId && _delegations != null)
+            {
+                var delegation = _delegations.Add(new TaskDelegation
+                {
+                    TaskId = task.Id,
+                    FromEmployeeId = executorId,
+                    ToEmployeeId = actualExecutorId,
+                    DelegatedAt = DateTime.Now,
+                    Comment = "По замещению"
+                });
+                _audit.Record(AuditActionType.TaskDelegated, nameof(DocumentTask), task.Id, authorId,
+                    newValues: $"From={executorId}; To={actualExecutorId}; Reason=Substitution",
+                    details: $"DelegationId={delegation.Id}");
+            }
+
             return task;
         }
 
