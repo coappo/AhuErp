@@ -68,18 +68,26 @@ namespace AhuErp.Core.Services
             var entry = _ctx.Entry(document);
             // Если сущность уже в трекере (типичный сценарий — её достали через Find/List
             // и тут же редактируют) — EF6 уже знает об изменениях. Если detached
-            // (после рестарта контекста или при ручной сборке) — присоединяем явно.
+            // (после рестарта контекста или при ручной сборке) — присоединяем явно
+            // и подменяем OriginalValues снимком из БД (EF6 по умолчанию заполняет
+            // OriginalValues текущими значениями entity, что ломает Phase 8 guard).
             if (entry.State == EntityState.Detached)
             {
+                var dbCopy = _ctx.Documents.AsNoTracking()
+                    .FirstOrDefault(d => d.Id == document.Id);
                 _ctx.Documents.Attach(document);
                 entry = _ctx.Entry(document);
+                if (dbCopy != null)
+                {
+                    // SetValues копирует все свойства маппинга из dbCopy в OriginalValues,
+                    // приводя guard к тому же состоянию, что и в tracked-сценарии.
+                    entry.OriginalValues.SetValues(dbCopy);
+                }
                 entry.State = EntityState.Modified;
             }
 
             // Phase 8 — guard на блокировку подписью.
-            bool wasLocked = entry.OriginalValues != null
-                ? (bool)entry.OriginalValues[nameof(Document.IsLocked)]
-                : document.IsLocked;
+            bool wasLocked = (bool)entry.OriginalValues[nameof(Document.IsLocked)];
             if (wasLocked)
             {
                 string[] immutable =
