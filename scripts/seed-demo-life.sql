@@ -343,10 +343,14 @@ SET IDENTITY_INSERT dbo.DocumentCaseLinks OFF;
  * ========================================================================== */
 SET IDENTITY_INSERT dbo.InventoryItems ON;
 INSERT INTO dbo.InventoryItems (Id, [Name], Category, TotalQuantity) VALUES
-    (1, N'Бумага A4 «Снегурочка», 500 листов',  0,  84),
+    /* TotalQuantity = sum of QuantityChanged по InventoryTransactions ниже —
+     * иначе при работе сервиса InventoryService.ProcessTransaction
+     * (атомарно держит и то, и другое в синхроне) появятся «фантомные»
+     * расхождения в дашбордах и отчётах остатков. */
+    (1, N'Бумага A4 «Снегурочка», 500 листов',  0,  87),
     (2, N'Картридж Canon 725 (для LBP6030)',   1,  17),
     (3, N'Тонер HP CF283A',                     1,   8),
-    (4, N'Ручка шариковая синяя BIC',           0, 240),
+    (4, N'Ручка шариковая синяя BIC',           0, 250),
     (5, N'Папка-регистратор A4 70мм',           0,  46),
     (6, N'Жидкое мыло для рук, 5л',             2,   9),
     (7, N'Перчатки одноразовые, упак. 100 шт.', 2,  22);
@@ -354,20 +358,23 @@ SET IDENTITY_INSERT dbo.InventoryItems OFF;
 
 SET IDENTITY_INSERT dbo.InventoryTransactions ON;
 INSERT INTO dbo.InventoryTransactions (Id, InventoryItemId, DocumentId, QuantityChanged, TransactionDate, InitiatorId, BasisDocumentId) VALUES
-    -- Приходы
+    -- Приходы (для каждого артикула ИТОГ = SUM(QuantityChanged), как делает
+    --          сервис InventoryService.ProcessTransaction в рантайме)
     (1, 1, NULL,  100, DATEADD(DAY, -25, GETDATE()), 9, NULL),
     (2, 2, NULL,   24, DATEADD(DAY, -20, GETDATE()), 9, NULL),
     (3, 3, NULL,   12, DATEADD(DAY, -20, GETDATE()), 9, NULL),
     (4, 4, NULL,  300, DATEADD(DAY, -25, GETDATE()), 9, NULL),
     (5, 5, NULL,   50, DATEADD(DAY, -25, GETDATE()), 9, NULL),
+    (6, 6, NULL,   10, DATEADD(DAY, -25, GETDATE()), 9, NULL),
+    (7, 7, NULL,   22, DATEADD(DAY, -25, GETDATE()), 9, NULL),
     -- Расходы
-    (6, 1,  6,  -10, DATEADD(DAY, -10, GETDATE()), 9, 6),
-    (7, 1,  6,   -3, DATEADD(DAY, -8, GETDATE()),  9, 6),
-    (8, 4,  6,  -50, DATEADD(DAY, -7, GETDATE()),  9, 6),
-    (9, 5,  6,   -4, DATEADD(DAY, -7, GETDATE()),  9, 6),
-    (10, 6, NULL,  -1, DATEADD(DAY, -3, GETDATE()),  9, NULL),
-    (11, 2, NULL,  -7, DATEADD(DAY, -2, GETDATE()),  9, NULL),
-    (12, 3, NULL,  -4, DATEADD(DAY, -1, GETDATE()),  9, NULL);
+    (8,  1, 6,  -10, DATEADD(DAY, -10, GETDATE()), 9, 6),
+    (9,  1, 6,   -3, DATEADD(DAY, -8, GETDATE()),  9, 6),
+    (10, 4, 6,  -50, DATEADD(DAY, -7, GETDATE()),  9, 6),
+    (11, 5, 6,   -4, DATEADD(DAY, -7, GETDATE()),  9, 6),
+    (12, 6, NULL, -1, DATEADD(DAY, -3, GETDATE()),  9, NULL),
+    (13, 2, NULL, -7, DATEADD(DAY, -2, GETDATE()),  9, NULL),
+    (14, 3, NULL, -4, DATEADD(DAY, -1, GETDATE()),  9, NULL);
 SET IDENTITY_INSERT dbo.InventoryTransactions OFF;
 
 /* ============================================================================
