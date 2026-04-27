@@ -90,8 +90,12 @@ namespace AhuErp.Core.Services
         public int IndexOutdated()
         {
             int count = 0;
+
+            // 1) Существующие записи с устаревшим хэшем — переиндексировать.
+            var indexed = new HashSet<int>();
             foreach (var existing in _repo.ListAll())
             {
+                indexed.Add(existing.AttachmentId);
                 var att = _attachments.GetById(existing.AttachmentId);
                 if (att == null) continue;
                 if (!string.Equals(existing.SourceContentHash, att.Hash, StringComparison.Ordinal))
@@ -99,6 +103,20 @@ namespace AhuErp.Core.Services
                     if (IndexAttachment(att.Id) != null) count++;
                 }
             }
+
+            // 2) Новые вложения без индексной записи — проиндексировать первый раз.
+            // Без этого `IndexOutdated()` никогда не доберётся до файлов, загруженных
+            // после старта (см. Devin Review #4: `IndexAttachment` не вызывается из
+            // AttachmentService.Upload/AddVersion, только периодический тик).
+            foreach (var d in _documents.Search(new DocumentSearchFilter()))
+            {
+                foreach (var a in _attachments.ListByDocument(d.Id))
+                {
+                    if (indexed.Contains(a.Id)) continue;
+                    if (IndexAttachment(a.Id) != null) count++;
+                }
+            }
+
             return count;
         }
 

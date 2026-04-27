@@ -127,6 +127,23 @@ namespace AhuErp.Tests
         }
 
         [Fact]
+        public void IndexOutdated_indexes_new_attachments_without_index_entry()
+        {
+            // Сценарий: пользователь загрузил вложение, индексной записи ещё нет
+            // (Upload/AddVersion не дёргают IndexAttachment). Тик `IndexOutdated()`
+            // должен сам обнаружить такое вложение и проиндексировать его.
+            var (_, fresh) = Seed("fresh.txt", "новое содержимое для индексации");
+            Assert.Empty(_indices.ListAll());
+
+            var indexed = _service.IndexOutdated();
+
+            Assert.Equal(1, indexed);
+            var entry = _indices.GetByAttachment(fresh.Id);
+            Assert.NotNull(entry);
+            Assert.Contains("новое", entry.ExtractedText);
+        }
+
+        [Fact]
         public void FullTextSearch_returns_hits_ordered_by_score()
         {
             var (d1, a1) = Seed("a.txt", "договор поставки канцтоваров", regNo: "INT-1");
