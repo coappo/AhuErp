@@ -12,6 +12,8 @@ namespace AhuErp.Core.Services
     public sealed class InMemoryDocumentRepository : IDocumentRepository
     {
         private readonly List<Document> _documents = new List<Document>();
+        private readonly Dictionary<int, DocumentLockSnapshot> _snapshots
+            = new Dictionary<int, DocumentLockSnapshot>();
         private int _nextId = 1;
 
         public IReadOnlyList<Document> ListByType(DocumentType type)
@@ -50,6 +52,7 @@ namespace AhuErp.Core.Services
             if (document.Id == 0) document.Id = _nextId++;
             else _nextId = Math.Max(_nextId, document.Id + 1);
             _documents.Add(document);
+            _snapshots[document.Id] = DocumentLockSnapshot.Of(document);
         }
 
         public void Update(Document document)
@@ -58,13 +61,23 @@ namespace AhuErp.Core.Services
             var index = _documents.FindIndex(d => d.Id == document.Id);
             if (index < 0)
                 throw new InvalidOperationException($"Документ #{document.Id} не найден.");
+            // Phase 8 — если документ был заблокирован подписью, разрешено менять
+            // только Status / AssignedEmployeeId / AccessLevel / IsLocked /
+            // CurrentVersionAttachmentId. Прочие правки → исключение.
+            if (_snapshots.TryGetValue(document.Id, out var snap))
+                snap.Enforce(document);
             _documents[index] = document;
+            _snapshots[document.Id] = DocumentLockSnapshot.Of(document);
         }
 
         public void Remove(int id)
         {
             var index = _documents.FindIndex(d => d.Id == id);
-            if (index >= 0) _documents.RemoveAt(index);
+            if (index >= 0)
+            {
+                _documents.RemoveAt(index);
+                _snapshots.Remove(id);
+            }
         }
 
         public IReadOnlyList<Document> Search(DocumentSearchFilter filter)

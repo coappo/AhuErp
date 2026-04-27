@@ -26,6 +26,7 @@ namespace AhuErp.UI.ViewModels
         private readonly IInventoryRepository _inventoryRepo;
         private readonly IFleetService _fleet;
         private readonly IVehicleRepository _vehicleRepo;
+        private readonly ISignatureService _signatures;
 
         public ObservableCollection<Document> Documents { get; }
             = new ObservableCollection<Document>();
@@ -47,6 +48,22 @@ namespace AhuErp.UI.ViewModels
 
         public ObservableCollection<AuditLog> History { get; }
             = new ObservableCollection<AuditLog>();
+
+        public ObservableCollection<DocumentSignature> Signatures { get; }
+            = new ObservableCollection<DocumentSignature>();
+
+        [ObservableProperty]
+        [NotifyCanExecuteChangedFor(nameof(SignSimpleCommand))]
+        [NotifyCanExecuteChangedFor(nameof(SignQualifiedCommand))]
+        [NotifyCanExecuteChangedFor(nameof(RevokeSignatureCommand))]
+        private DocumentSignature selectedSignature;
+
+        [ObservableProperty]
+        private string signReason;
+
+        [ObservableProperty]
+        [NotifyCanExecuteChangedFor(nameof(SignQualifiedCommand))]
+        private string signCertificateThumbprint;
 
         public ObservableCollection<InventoryTransaction> RelatedInventoryTx { get; }
             = new ObservableCollection<InventoryTransaction>();
@@ -100,6 +117,8 @@ namespace AhuErp.UI.ViewModels
         [NotifyCanExecuteChangedFor(nameof(CreateVehicleTripCommand))]
         [NotifyCanExecuteChangedFor(nameof(CreateArchiveRequestCommand))]
         [NotifyCanExecuteChangedFor(nameof(CreateItTicketCommand))]
+        [NotifyCanExecuteChangedFor(nameof(SignSimpleCommand))]
+        [NotifyCanExecuteChangedFor(nameof(SignQualifiedCommand))]
         private Document selectedDocument;
 
         [ObservableProperty]
@@ -152,7 +171,8 @@ namespace AhuErp.UI.ViewModels
             IInventoryService inventory,
             IInventoryRepository inventoryRepo,
             IFleetService fleet,
-            IVehicleRepository vehicleRepo)
+            IVehicleRepository vehicleRepo,
+            ISignatureService signatures = null)
         {
             _documents = documents ?? throw new ArgumentNullException(nameof(documents));
             _nomenclature = nomenclature ?? throw new ArgumentNullException(nameof(nomenclature));
@@ -165,6 +185,7 @@ namespace AhuErp.UI.ViewModels
             _inventoryRepo = inventoryRepo ?? throw new ArgumentNullException(nameof(inventoryRepo));
             _fleet = fleet ?? throw new ArgumentNullException(nameof(fleet));
             _vehicleRepo = vehicleRepo ?? throw new ArgumentNullException(nameof(vehicleRepo));
+            _signatures = signatures;
 
             Reload();
         }
@@ -189,6 +210,7 @@ namespace AhuErp.UI.ViewModels
             ReloadApprovals();
             ReloadHistory();
             ReloadRelatedOps();
+            ReloadSignatures();
         }
 
         [RelayCommand]
@@ -513,7 +535,83 @@ namespace AhuErp.UI.ViewModels
             Tasks.Clear();
             Approvals.Clear();
             History.Clear();
+            Signatures.Clear();
         }
+
+        // ---------------- Phase 8 — подписи -------------------------------
+
+        private void ReloadSignatures()
+        {
+            Signatures.Clear();
+            if (SelectedDocument == null || _signatures == null) return;
+            foreach (var s in _signatures.ListByDocument(SelectedDocument.Id))
+                Signatures.Add(s);
+        }
+
+        [RelayCommand(CanExecute = nameof(CanSign))]
+        private void SignSimple()
+        {
+            ErrorMessage = null;
+            try
+            {
+                var actor = _auth.CurrentEmployee?.Id ?? 0;
+                if (actor == 0) { ErrorMessage = "Не определён текущий сотрудник."; return; }
+                _signatures.Sign(SelectedDocument.Id, attachmentId: null, signerId: actor,
+                    kind: SignatureKind.Simple, reason: SignReason);
+                SignReason = null;
+                ReloadSignatures();
+                ReloadHistory();
+            }
+            catch (Exception ex) { ErrorMessage = ex.Message; }
+        }
+
+        [RelayCommand(CanExecute = nameof(CanSignQualified))]
+        private void SignQualified()
+        {
+            ErrorMessage = null;
+            try
+            {
+                var actor = _auth.CurrentEmployee?.Id ?? 0;
+                if (actor == 0) { ErrorMessage = "Не определён текущий сотрудник."; return; }
+                _signatures.Sign(SelectedDocument.Id, attachmentId: null, signerId: actor,
+                    kind: SignatureKind.Qualified, reason: SignReason,
+                    certificateThumbprint: SignCertificateThumbprint);
+                SignReason = null;
+                SignCertificateThumbprint = null;
+                ReloadSignatures();
+                ReloadHistory();
+                // SelectedDocument теперь IsLocked=true — обновляем из репозитория.
+                if (SelectedDocument != null)
+                {
+                    var refreshed = _documents.GetById(SelectedDocument.Id);
+                    if (refreshed != null) SelectedDocument = refreshed;
+                }
+            }
+            catch (Exception ex) { ErrorMessage = ex.Message; }
+        }
+
+        [RelayCommand(CanExecute = nameof(CanRevokeSignature))]
+        private void RevokeSignature()
+        {
+            ErrorMessage = null;
+            try
+            {
+                var actor = _auth.CurrentEmployee?.Id ?? 0;
+                if (actor == 0) { ErrorMessage = "Не определён текущий сотрудник."; return; }
+                _signatures.Revoke(SelectedSignature.Id, actor,
+                    SignReason ?? "Отзыв из РКК");
+                SignReason = null;
+                ReloadSignatures();
+                ReloadHistory();
+            }
+            catch (Exception ex) { ErrorMessage = ex.Message; }
+        }
+
+        private bool CanSign() => SelectedDocument != null && _signatures != null;
+        private bool CanSignQualified() => CanSign()
+            && !string.IsNullOrWhiteSpace(SignCertificateThumbprint);
+        private bool CanRevokeSignature() => SelectedSignature != null
+            && !SelectedSignature.IsRevoked && _signatures != null;
 
         private bool CanSave() => !string.IsNullOrWhiteSpace(DraftTitle);
         private bool CanRegister() => SelectedDocument != null && !SelectedDocument.IsRegistered;
