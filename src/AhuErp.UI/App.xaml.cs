@@ -48,6 +48,30 @@ namespace AhuErp.UI
             main.Closed += (_, __) => Shutdown();
             main.Show();
 
+            // Phase 9 — раз в 60 секунд обходим активные задачи и создаём
+            // напоминания TaskDeadlineSoon / TaskOverdue, плюс обновляем
+            // счётчик непрочитанных в шапке. Таймер живёт пока живо MainWindow.
+            var notifications = AppServices.GetRequiredService<INotificationService>();
+            var reminderTimer = new DispatcherTimer
+            {
+                Interval = TimeSpan.FromSeconds(60),
+            };
+            reminderTimer.Tick += (_, __) =>
+            {
+                try
+                {
+                    notifications.TickReminders(DateTime.Now);
+                    mainVm.RefreshUnreadCount();
+                }
+                catch
+                {
+                    // Сбой фонового таймера не должен ронять UI;
+                    // диагностика идёт через журнал аудита/логирование.
+                }
+            };
+            reminderTimer.Start();
+            main.Closed += (_, __) => reminderTimer.Stop();
+
             // Phase 10 — фоновое доиндексирование вложений каждые 5 минут.
             // Запускаем именно через DispatcherTimer, чтобы EF6/AhuDbContext
             // оставался в одном UI-треде (контекст у нас Singleton).
@@ -65,6 +89,7 @@ namespace AhuErp.UI
                 }
             };
             indexTimer.Start();
+            main.Closed += (_, __) => indexTimer.Stop();
         }
 
         private static void OnDispatcherUnhandledException(object sender, DispatcherUnhandledExceptionEventArgs e)

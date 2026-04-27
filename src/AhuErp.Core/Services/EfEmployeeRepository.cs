@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using AhuErp.Core.Data;
 using AhuErp.Core.Models;
@@ -25,5 +26,10 @@ namespace AhuErp.Core.Services
             if (string.IsNullOrWhiteSpace(fullName)) return null;
             return _ctx.Employees.FirstOrDefault(e => e.FullName == fullName);
         }
+
+        public Employee GetById(int id) => _ctx.Employees.Find(id);
+
+        public IReadOnlyList<Employee> ListAll()
+            => _ctx.Employees.OrderBy(e => e.FullName).ToList().AsReadOnly();
     }
 }
