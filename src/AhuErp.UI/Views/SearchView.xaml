@@ -6,56 +6,134 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              mc:Ignorable="d"
              d:DataContext="{d:DesignInstance Type=vm:SearchViewModel}"
-             d:DesignHeight="600" d:DesignWidth="1100">
+             d:DesignHeight="700" d:DesignWidth="1200">
     <Grid Margin="24">
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="*" />
-            <RowDefinition Height="Auto" />
-        </Grid.RowDefinitions>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="260" />
+            <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
 
-        <TextBlock Text="Глобальный поиск" FontSize="20" FontWeight="SemiBold" Margin="0,0,0,12" />
-
-        <Border Grid.Row="1" Padding="12" Background="White" CornerRadius="4" Margin="0,0,0,8">
-            <StackPanel Orientation="Horizontal">
-                <TextBox Text="{Binding Query, UpdateSourceTrigger=PropertyChanged}"
-                         Width="320" Padding="6" Margin="0,0,12,0">
-                    <TextBox.InputBindings>
-                        <KeyBinding Key="Return" Command="{Binding SearchCommand}" />
-                    </TextBox.InputBindings>
-                </TextBox>
-                <ComboBox ItemsSource="{Binding AvailableDirections}"
-                          SelectedItem="{Binding SelectedDirection}"
-                          MinWidth="140" Margin="0,0,12,0" Padding="6" />
-                <ComboBox ItemsSource="{Binding AvailableStatuses}"
-                          SelectedItem="{Binding SelectedStatus}"
-                          MinWidth="140" Margin="0,0,12,0" Padding="6" />
-                <Button Content="Найти" Command="{Binding SearchCommand}" Padding="10,4" Margin="0,0,6,0" />
-                <Button Content="Сброс" Command="{Binding ResetCommand}" Padding="10,4" />
-            </StackPanel>
+        <!-- Sidebar: Сохранённые поиски -->
+        <Border Grid.Column="0" Padding="12" Background="#F8FAFC" CornerRadius="4" Margin="0,0,12,0">
+            <DockPanel>
+                <TextBlock DockPanel.Dock="Top" Text="Сохранённые поиски"
+                           FontWeight="SemiBold" Margin="0,0,0,8" />
+                <StackPanel DockPanel.Dock="Bottom" Margin="0,8,0,0">
+                    <TextBox Text="{Binding SaveFilterName, UpdateSourceTrigger=PropertyChanged}"
+                             Padding="6" Margin="0,0,0,4" />
+                    <CheckBox Content="Сделать общим (shared)"
+                              IsChecked="{Binding SaveFilterShared}" Margin="0,0,0,4" />
+                    <Button Content="Сохранить фильтр…" Command="{Binding SaveFilterCommand}" Padding="6,4" />
+                </StackPanel>
+                <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Margin="0,4,0,0">
+                    <Button Content="Применить" Command="{Binding ApplySavedSearchCommand}" Padding="6,4" Margin="0,0,4,0" />
+                    <Button Content="Удалить" Command="{Binding DeleteSavedSearchCommand}" Padding="6,4" />
+                </StackPanel>
+                <!-- LastChild: ListBox занимает оставшееся вертикальное пространство. -->
+                <ListBox ItemsSource="{Binding SavedSearches}"
+                         SelectedItem="{Binding SelectedSavedSearch}"
+                         DisplayMemberPath="Name"
+                         Margin="0,0,0,8" />
+            </DockPanel>
         </Border>
 
-        <DataGrid Grid.Row="2"
-                  ItemsSource="{Binding Results}"
-                  AutoGenerateColumns="False"
-                  CanUserAddRows="False" CanUserDeleteRows="False"
-                  IsReadOnly="True"
-                  HeadersVisibility="Column"
-                  GridLinesVisibility="Horizontal">
-            <DataGrid.Columns>
-                <DataGridTextColumn Header="Рег. №" Binding="{Binding RegistrationNumber}" Width="120" />
-                <DataGridTextColumn Header="Дата" Binding="{Binding RegistrationDate, StringFormat=dd.MM.yyyy}" Width="100" />
-                <DataGridTextColumn Header="Направление" Binding="{Binding Direction, Converter={StaticResource EnumDisplayConverter}}" Width="120" />
-                <DataGridTextColumn Header="Заголовок" Binding="{Binding Title}" Width="*" />
-                <DataGridTextColumn Header="Корреспондент" Binding="{Binding Correspondent}" Width="180" />
-                <DataGridTextColumn Header="Статус" Binding="{Binding Status, Converter={StaticResource EnumDisplayConverter}}" Width="120" />
-            </DataGrid.Columns>
-        </DataGrid>
+        <!-- Main: фильтры + результаты -->
+        <Grid Grid.Column="1">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
 
-        <StackPanel Grid.Row="3" Orientation="Horizontal" Margin="0,8,0,0">
-            <TextBlock Text="{Binding StatusMessage}" Foreground="#0F766E" Margin="0,0,12,0" />
-            <TextBlock Text="{Binding ErrorMessage}" Foreground="#B91C1C" />
-        </StackPanel>
+            <TextBlock Text="Глобальный поиск" FontSize="20" FontWeight="SemiBold" Margin="0,0,0,12" />
+
+            <Border Grid.Row="1" Padding="12" Background="White" CornerRadius="4" Margin="0,0,0,8">
+                <StackPanel>
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                        <TextBox Text="{Binding Query, UpdateSourceTrigger=PropertyChanged}"
+                                 Width="320" Padding="6" Margin="0,0,12,0">
+                            <TextBox.InputBindings>
+                                <KeyBinding Key="Return" Command="{Binding SearchCommand}" />
+                            </TextBox.InputBindings>
+                        </TextBox>
+                        <Button Content="Найти" Command="{Binding SearchCommand}" Padding="10,4" Margin="0,0,6,0" />
+                        <Button Content="Сброс" Command="{Binding ResetCommand}" Padding="10,4" />
+                    </StackPanel>
+                    <WrapPanel>
+                        <StackPanel Orientation="Vertical" Margin="0,0,16,4">
+                            <TextBlock Text="Направление" FontSize="11" />
+                            <ComboBox ItemsSource="{Binding AvailableDirections}"
+                                      SelectedItem="{Binding SelectedDirection}"
+                                      MinWidth="140" Padding="6" />
+                        </StackPanel>
+                        <StackPanel Orientation="Vertical" Margin="0,0,16,4">
+                            <TextBlock Text="Статус" FontSize="11" />
+                            <ComboBox ItemsSource="{Binding AvailableStatuses}"
+                                      SelectedItem="{Binding SelectedStatus}"
+                                      MinWidth="140" Padding="6" />
+                        </StackPanel>
+                        <StackPanel Orientation="Vertical" Margin="0,0,16,4">
+                            <TextBlock Text="Период с" FontSize="11" />
+                            <DatePicker SelectedDate="{Binding PeriodFrom}" MinWidth="140" />
+                        </StackPanel>
+                        <StackPanel Orientation="Vertical" Margin="0,0,16,4">
+                            <TextBlock Text="Период по" FontSize="11" />
+                            <DatePicker SelectedDate="{Binding PeriodTo}" MinWidth="140" />
+                        </StackPanel>
+                        <CheckBox Content="Искать в текстах вложений"
+                                  IsChecked="{Binding SearchInAttachments}"
+                                  VerticalAlignment="Bottom" Margin="0,0,0,8" />
+                    </WrapPanel>
+                </StackPanel>
+            </Border>
+
+            <DataGrid Grid.Row="2"
+                      ItemsSource="{Binding Results}"
+                      AutoGenerateColumns="False"
+                      CanUserAddRows="False" CanUserDeleteRows="False"
+                      IsReadOnly="True"
+                      HeadersVisibility="Column"
+                      GridLinesVisibility="Horizontal">
+                <DataGrid.Columns>
+                    <DataGridTextColumn Header="Рег. №" Binding="{Binding RegistrationNumber}" Width="120" />
+                    <DataGridTextColumn Header="Дата" Binding="{Binding RegistrationDate, StringFormat=dd.MM.yyyy}" Width="100" />
+                    <DataGridTextColumn Header="Направление" Binding="{Binding Direction, Converter={StaticResource EnumDisplayConverter}}" Width="120" />
+                    <DataGridTextColumn Header="Заголовок" Binding="{Binding Title}" Width="*" />
+                    <DataGridTextColumn Header="Корреспондент" Binding="{Binding Correspondent}" Width="180" />
+                    <DataGridTextColumn Header="Статус" Binding="{Binding Status, Converter={StaticResource EnumDisplayConverter}}" Width="120" />
+                </DataGrid.Columns>
+            </DataGrid>
+
+            <!-- Полнотекстовые попадания -->
+            <Border Grid.Row="3" Padding="8" Background="#F1F5F9" CornerRadius="4" Margin="0,8,0,0">
+                <StackPanel>
+                    <TextBlock Text="Совпадения в текстах вложений" FontWeight="SemiBold" Margin="0,0,0,4" />
+                    <ItemsControl ItemsSource="{Binding FullTextHits}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Border BorderBrush="#CBD5E1" BorderThickness="0,0,0,1" Padding="0,4,0,4">
+                                    <StackPanel>
+                                        <StackPanel Orientation="Horizontal">
+                                            <TextBlock Text="{Binding RegistrationNumber}" FontWeight="SemiBold" Margin="0,0,8,0" />
+                                            <TextBlock Text="{Binding DocumentTitle}" Margin="0,0,8,0" />
+                                            <TextBlock Text="{Binding AttachmentName}" Foreground="#475569" />
+                                            <TextBlock Text="{Binding Score, StringFormat= (score: {0:F0})}" Foreground="#94A3B8" Margin="8,0,0,0" />
+                                        </StackPanel>
+                                        <TextBlock Text="{Binding Snippet}" TextWrapping="Wrap" Foreground="#0F172A" />
+                                    </StackPanel>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+            </Border>
+
+            <StackPanel Grid.Row="4" Orientation="Horizontal" Margin="0,8,0,0">
+                <TextBlock Text="{Binding StatusMessage}" Foreground="#0F766E" Margin="0,0,12,0" />
+                <TextBlock Text="{Binding ErrorMessage}" Foreground="#B91C1C" />
+            </StackPanel>
+        </Grid>
     </Grid>
 </UserControl>

@@ -54,6 +54,8 @@ namespace AhuErp.Core.Data
         public virtual DbSet<DocumentApproval> DocumentApprovals { get; set; }
         public virtual DbSet<DocumentSignature> DocumentSignatures { get; set; }
         public virtual DbSet<AuditLog> AuditLogs { get; set; }
+        public virtual DbSet<AttachmentTextIndex> AttachmentTextIndices { get; set; }
+        public virtual DbSet<SavedSearch> SavedSearches { get; set; }
 
         // Phase 11 — оргструктура и замещения.
         public virtual DbSet<Substitution> Substitutions { get; set; }
@@ -380,6 +382,30 @@ namespace AhuErp.Core.Data
                 .HasRequired(p => p.Employee)
                 .WithMany()
                 .HasForeignKey(p => p.EmployeeId)
+                .WillCascadeOnDelete(false);
+
+            // Phase 10 — полнотекстовый индекс и сохранённые поиски.
+            modelBuilder.Entity<AttachmentTextIndex>().ToTable("AttachmentTextIndices");
+            modelBuilder.Entity<AttachmentTextIndex>()
+                .Property(x => x.ExtractedText)
+                .HasColumnType("nvarchar(max)");
+            // Каскадное удаление: Document → DocumentAttachment (cascade) →
+            // AttachmentTextIndex (cascade). Иначе FK на индексе блокирует
+            // удаление документа с проиндексированными вложениями.
+            modelBuilder.Entity<AttachmentTextIndex>()
+                .HasRequired(x => x.Attachment)
+                .WithMany()
+                .HasForeignKey(x => x.AttachmentId)
+                .WillCascadeOnDelete(true);
+
+            modelBuilder.Entity<SavedSearch>().ToTable("SavedSearches");
+            modelBuilder.Entity<SavedSearch>()
+                .Property(x => x.FilterJson)
+                .HasColumnType("nvarchar(max)");
+            modelBuilder.Entity<SavedSearch>()
+                .HasRequired(x => x.Owner)
+                .WithMany()
+                .HasForeignKey(x => x.OwnerId)
                 .WillCascadeOnDelete(false);
 
             base.OnModelCreating(modelBuilder);

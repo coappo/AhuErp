@@ -71,6 +71,25 @@ namespace AhuErp.UI
             };
             reminderTimer.Start();
             main.Closed += (_, __) => reminderTimer.Stop();
+
+            // Phase 10 — фоновое доиндексирование вложений каждые 5 минут.
+            // Запускаем именно через DispatcherTimer, чтобы EF6/AhuDbContext
+            // оставался в одном UI-треде (контекст у нас Singleton).
+            var indexTimer = new DispatcherTimer { Interval = TimeSpan.FromMinutes(5) };
+            indexTimer.Tick += (_, __) =>
+            {
+                try
+                {
+                    var index = AppServices.GetRequiredService<ISearchIndexService>();
+                    index.IndexOutdated();
+                }
+                catch
+                {
+                    // тихо проглатываем — поиск не критичный фоновый процесс.
+                }
+            };
+            indexTimer.Start();
+            main.Closed += (_, __) => indexTimer.Stop();
         }
 
         private static void OnDispatcherUnhandledException(object sender, DispatcherUnhandledExceptionEventArgs e)
