@@ -339,7 +339,59 @@
                         </ScrollViewer>
                     </TabItem>
 
-                    <TabItem Header="6. История и аудит">
+                    <TabItem Header="6. Подписи">
+                        <DockPanel Margin="8">
+                            <Border DockPanel.Dock="Top" Background="#FEF3C7" BorderBrush="#F59E0B"
+                                    BorderThickness="1" CornerRadius="4" Padding="6,3" Margin="0,0,0,6"
+                                    Visibility="{Binding SelectedDocument.IsLocked, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                <TextBlock Text="🔒 Документ заблокирован квалифицированной подписью. Можно менять только статус, исполнителя и гриф доступа."
+                                           Foreground="#92400E" TextWrapping="Wrap" />
+                            </Border>
+                            <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,8">
+                                <Button Content="Подписать ПЭП" Command="{Binding SignSimpleCommand}"
+                                        MinWidth="130" Padding="6,3" Margin="0,0,6,0" />
+                                <Button Content="Подписать КЭП" Command="{Binding SignQualifiedCommand}"
+                                        MinWidth="130" Padding="6,3" Margin="0,0,6,0" />
+                                <Button Content="Отозвать" Command="{Binding RevokeSignatureCommand}"
+                                        MinWidth="100" Padding="6,3" Margin="0,0,12,0" />
+                            </StackPanel>
+                            <Grid DockPanel.Dock="Top" Margin="0,0,0,8">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="120" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                </Grid.RowDefinitions>
+                                <TextBlock Text="Основание:" Grid.Row="0" Grid.Column="0" Margin="0,4,8,4" />
+                                <TextBox Text="{Binding SignReason, UpdateSourceTrigger=PropertyChanged}"
+                                         Grid.Row="0" Grid.Column="1" Margin="0,2" />
+                                <TextBlock Text="Thumbprint (КЭП):" Grid.Row="1" Grid.Column="0" Margin="0,4,8,4" />
+                                <TextBox Text="{Binding SignCertificateThumbprint, UpdateSourceTrigger=PropertyChanged}"
+                                         Grid.Row="1" Grid.Column="1" Margin="0,2"
+                                         ToolTip="Отпечаток сертификата КЭП в CryptoPro CSP" />
+                            </Grid>
+                            <DataGrid ItemsSource="{Binding Signatures}"
+                                      SelectedItem="{Binding SelectedSignature, UpdateSourceTrigger=PropertyChanged}"
+                                      AutoGenerateColumns="False"
+                                      CanUserAddRows="False" CanUserDeleteRows="False"
+                                      IsReadOnly="True"
+                                      HeadersVisibility="Column"
+                                      GridLinesVisibility="Horizontal">
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="Подписан" Binding="{Binding SignedAt, StringFormat=dd.MM.yyyy HH:mm}" Width="140" />
+                                    <DataGridTextColumn Header="Подписант" Binding="{Binding Signer.FullName}" Width="*" />
+                                    <DataGridTextColumn Header="Тип" Binding="{Binding Kind}" Width="100" />
+                                    <DataGridTextColumn Header="Сертификат" Binding="{Binding CertificateSubject}" Width="240" />
+                                    <DataGridTextColumn Header="Основание" Binding="{Binding Reason}" Width="200" />
+                                    <DataGridCheckBoxColumn Header="Отозвано" Binding="{Binding IsRevoked}" Width="80" />
+                                </DataGrid.Columns>
+                            </DataGrid>
+                        </DockPanel>
+                    </TabItem>
+
+                    <TabItem Header="7. История и аудит">
                         <DockPanel Margin="12">
                             <TextBlock DockPanel.Dock="Top"
                                        Text="Хронология действий по документу. Цепочка hash-целостности проверяется в журнале аудита."

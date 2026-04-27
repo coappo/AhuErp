@@ -16,7 +16,7 @@ namespace AhuErp.Core.Services
         /// </summary>
         Employee FindByFullName(string fullName);
 
-        /// <summary>Сотрудник по идентификатору; null — если не найден.</summary>
+        /// <summary>Сотрудник по идентификатору; <c>null</c>, если не найден.</summary>
         Employee GetById(int id);
 
         /// <summary>

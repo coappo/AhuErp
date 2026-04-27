@@ -52,6 +52,7 @@ namespace AhuErp.Core.Data
         public virtual DbSet<ApprovalRouteTemplate> ApprovalRouteTemplates { get; set; }
         public virtual DbSet<ApprovalStage> ApprovalStages { get; set; }
         public virtual DbSet<DocumentApproval> DocumentApprovals { get; set; }
+        public virtual DbSet<DocumentSignature> DocumentSignatures { get; set; }
         public virtual DbSet<AuditLog> AuditLogs { get; set; }
 
         // Phase 11 — оргструктура и замещения.
@@ -284,6 +285,29 @@ namespace AhuErp.Core.Data
                 .HasRequired(a => a.Approver)
                 .WithMany()
                 .HasForeignKey(a => a.ApproverId)
+                .WillCascadeOnDelete(false);
+
+            modelBuilder.Entity<DocumentSignature>().ToTable("DocumentSignatures");
+            modelBuilder.Entity<DocumentSignature>()
+                .HasRequired(s => s.Document)
+                .WithMany()
+                .HasForeignKey(s => s.DocumentId)
+                .WillCascadeOnDelete(false);
+            modelBuilder.Entity<DocumentSignature>()
+                .HasOptional(s => s.Attachment)
+                .WithMany()
+                .HasForeignKey(s => s.AttachmentId)
+                .WillCascadeOnDelete(false);
+            modelBuilder.Entity<DocumentSignature>()
+                .HasRequired(s => s.Signer)
+                .WithMany()
+                .HasForeignKey(s => s.SignerId)
+                .WillCascadeOnDelete(false);
+
+            modelBuilder.Entity<Document>()
+                .HasOptional(d => d.CurrentVersionAttachment)
+                .WithMany()
+                .HasForeignKey(d => d.CurrentVersionAttachmentId)
                 .WillCascadeOnDelete(false);
 
             modelBuilder.Entity<AuditLog>().ToTable("AuditLogs");
