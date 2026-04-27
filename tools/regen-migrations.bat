@@ -69,15 +69,15 @@ echo.
 
 rem --- 0/6: проверяем инструменты ------------------------------------------
 where dotnet >nul 2>&1 || (
-    echo [!] dotnet not found in PATH. Install .NET SDK from https://dotnet.microsoft.com/download
+    echo [X] dotnet not found in PATH. Install .NET SDK from https://dotnet.microsoft.com/download
     goto :err
 )
 where sqlcmd >nul 2>&1 || (
-    echo [!] sqlcmd not found in PATH. Install "SQL Server Command Line Utilities".
+    echo [X] sqlcmd not found in PATH. Install "SQL Server Command Line Utilities".
     goto :err
 )
 where powershell >nul 2>&1 || (
-    echo [!] powershell.exe not found, что странно. Скрипт использует его для патча App.config.
+    echo [X] powershell.exe not found, что странно. Скрипт использует его для патча App.config.
     goto :err
 )
 
@@ -128,7 +128,7 @@ echo === [6/6] Apply fresh snapshot to %TARGETMIG%.resx
 set "TEMPRESX="
 for /f "delims=" %%F in ('dir /B /OD "%MIGS%\*_ResxSnapshot.resx" 2^>nul') do set "TEMPRESX=%%F"
 if not defined TEMPRESX (
-    echo [!] Не найден свежесгенерированный *_ResxSnapshot.resx в %MIGS%
+    echo [X] Не найден свежесгенерированный *_ResxSnapshot.resx в %MIGS%
     goto :err
 )
 set "TEMPBASE=!TEMPRESX:.resx=!"
