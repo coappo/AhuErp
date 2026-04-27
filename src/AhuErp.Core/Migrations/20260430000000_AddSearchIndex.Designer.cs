@@ -13,7 +13,7 @@ namespace AhuErp.Core.Migrations
 
         string IMigrationMetadata.Id
         {
-            get { return "202604300000000_AddSearchIndex"; }
+            get { return "20260430000000_AddSearchIndex"; }
         }
 
         string IMigrationMetadata.Source
