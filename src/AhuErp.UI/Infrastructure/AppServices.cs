@@ -130,7 +130,9 @@ namespace AhuErp.UI.Infrastructure
                 sp.GetRequiredService<IDocumentRepository>(),
                 sp.GetRequiredService<ITaskService>(),
                 sp.GetRequiredService<ITaskRepository>(),
-                sp.GetRequiredService<INomenclatureRepository>()));
+                sp.GetRequiredService<INomenclatureRepository>(),
+                sp.GetRequiredService<IVehicleRepository>(),
+                sp.GetRequiredService<IAuditService>()));
 
             // UI-инфраструктура
             services.AddSingleton<IFileDialogService, FileDialogService>();
@@ -150,6 +152,7 @@ namespace AhuErp.UI.Infrastructure
             services.AddTransient<AuditJournalViewModel>();
             services.AddTransient<JournalViewModel>();
             services.AddTransient<SearchViewModel>();
+            services.AddTransient<ReportsViewModel>();
             services.AddTransient<OrgStructureViewModel>();
             services.AddTransient<SubstitutionsViewModel>();
             services.AddTransient<MyDesktopViewModel>();

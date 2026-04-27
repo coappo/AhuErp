@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using AhuErp.Core.Models;
+using AhuErp.Core.Reports;
 using ClosedXML.Excel;
 using DocumentFormat.OpenXml;
 using DocumentFormat.OpenXml.Packaging;
@@ -22,17 +23,18 @@ namespace AhuErp.Core.Services
         private readonly ITaskService _tasks;
         private readonly ITaskRepository _taskRepo;
         private readonly INomenclatureRepository _nomenclature;
+        private readonly IVehicleRepository _vehicles;
+        private readonly IAuditService _audit;
 
         public ReportService(IInventoryRepository inventory, IDocumentRepository documents)
-            : this(inventory, documents, null, null, null)
+            : this(inventory, documents, null, null, null, null, null)
         {
         }
 
         /// <summary>
-        /// Полная DI-перегрузка для отчётов СЭД (исполнительская дисциплина,
-        /// объём документооборота, просрочка, аналитика по номенклатуре).
-        /// Старая 2-аргументная перегрузка сохранена ради обратной совместимости
-        /// с тестами Phase 4.
+        /// 5-аргументная перегрузка для Phase 4-9 отчётов СЭД. Phase 12
+        /// расширил список зависимостей — для совместимости с уже
+        /// существующими тестами эта перегрузка делегирует в полную.
         /// </summary>
         public ReportService(
             IInventoryRepository inventory,
@@ -40,12 +42,31 @@ namespace AhuErp.Core.Services
             ITaskService tasks,
             ITaskRepository taskRepo,
             INomenclatureRepository nomenclature)
+            : this(inventory, documents, tasks, taskRepo, nomenclature, null, null)
+        {
+        }
+
+        /// <summary>
+        /// Phase 12 — расширенный конструктор: добавляются зависимости автопарка
+        /// (для отчёта по парку) и журнала аудита (для PDF-выгрузки полной
+        /// истории документа). Старые перегрузки оставлены ради совместимости.
+        /// </summary>
+        public ReportService(
+            IInventoryRepository inventory,
+            IDocumentRepository documents,
+            ITaskService tasks,
+            ITaskRepository taskRepo,
+            INomenclatureRepository nomenclature,
+            IVehicleRepository vehicles,
+            IAuditService audit)
         {
             _inventory = inventory ?? throw new ArgumentNullException(nameof(inventory));
             _documents = documents ?? throw new ArgumentNullException(nameof(documents));
             _tasks = tasks;
             _taskRepo = taskRepo;
             _nomenclature = nomenclature;
+            _vehicles = vehicles;
+            _audit = audit;
         }
 
         public void ExportInventoryToExcel(string filePath)
@@ -541,6 +562,260 @@ namespace AhuErp.Core.Services
             runProps.AppendChild(new W.FontSize { Val = "32" });
             run.AppendChild(new W.Text(text) { Space = SpaceProcessingModeValues.Preserve });
             return p;
+        }
+
+        // ================================================================
+        // Phase 12 — пакет регламентированных отчётов СЭД
+        // ================================================================
+
+        public void ExportOutgoingDispatchRegistry(DateTime from, DateTime to, string filePath)
+        {
+            if (string.IsNullOrWhiteSpace(filePath))
+                throw new ArgumentException("Путь к файлу обязателен.", nameof(filePath));
+            if (to < from) throw new ArgumentException("Период некорректен (To < From).");
+
+            var rows = _documents.Search(new DocumentSearchFilter
+            {
+                Direction = DocumentDirection.Outgoing,
+                From = from,
+                To = to.Date.AddDays(1).AddTicks(-1),
+                RegisteredOnly = true,
+            });
+
+            using (var workbook = new XLWorkbook())
+            {
+                var sheet = workbook.Worksheets.Add("Реестр отправки");
+                sheet.Cell(1, 1).Value = $"Реестр отправки исходящих за {from:dd.MM.yyyy}–{to:dd.MM.yyyy}";
+                var title = sheet.Range(1, 1, 1, 6);
+                title.Merge();
+                title.Style.Font.Bold = true;
+                title.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+
+                sheet.Cell(2, 1).Value = "№";
+                sheet.Cell(2, 2).Value = "Рег. номер";
+                sheet.Cell(2, 3).Value = "Дата";
+                sheet.Cell(2, 4).Value = "Тема";
+                sheet.Cell(2, 5).Value = "Корреспондент";
+                sheet.Cell(2, 6).Value = "Способ отправки";
+                var header = sheet.Range(2, 1, 2, 6);
+                header.Style.Font.Bold = true;
+                header.Style.Fill.BackgroundColor = XLColor.LightSteelBlue;
+
+                int r = 3;
+                int n = 1;
+                foreach (var d in rows)
+                {
+                    sheet.Cell(r, 1).Value = n++;
+                    sheet.Cell(r, 2).Value = d.RegistrationNumber;
+                    sheet.Cell(r, 3).Value = d.RegistrationDate ?? d.CreationDate;
+                    sheet.Cell(r, 3).Style.DateFormat.Format = "dd.MM.yyyy";
+                    sheet.Cell(r, 4).Value = d.Title;
+                    sheet.Cell(r, 5).Value = d.Correspondent;
+                    sheet.Cell(r, 6).Value = "Почта/Эл.почта";
+                    r++;
+                }
+
+                sheet.Cell(r, 1).Value = $"Всего отправлено: {n - 1}";
+                sheet.Range(r, 1, r, 6).Merge().Style.Font.Italic = true;
+                sheet.Columns().AdjustToContents();
+                workbook.SaveAs(filePath);
+            }
+        }
+
+        public void GenerateCaseInventory(int nomenclatureCaseId, string filePath)
+        {
+            if (string.IsNullOrWhiteSpace(filePath))
+                throw new ArgumentException("Путь к файлу обязателен.", nameof(filePath));
+            if (_nomenclature == null)
+                throw new InvalidOperationException("INomenclatureRepository не зарегистрирован.");
+
+            var @case = _nomenclature.GetCase(nomenclatureCaseId)
+                ?? throw new InvalidOperationException($"Дело #{nomenclatureCaseId} не найдено.");
+
+            var documents = _documents.Search(new DocumentSearchFilter
+            {
+                NomenclatureCaseId = nomenclatureCaseId,
+            });
+
+            using (var doc = WordprocessingDocument.Create(filePath, WordprocessingDocumentType.Document))
+            {
+                var main = doc.AddMainDocumentPart();
+                main.Document = new W.Document(new W.Body());
+                var body = main.Document.Body;
+
+                body.AppendChild(Heading($"ОПИСЬ ДЕЛА № {@case.Index}"));
+                body.AppendChild(Paragraph($"«{@case.Title}»"));
+                body.AppendChild(Paragraph($"Год: {@case.Year}; срок хранения: {@case.RetentionPeriodYears} лет."));
+                body.AppendChild(Paragraph(string.Empty));
+
+                int idx = 1;
+                foreach (var d in documents.OrderBy(x => x.RegistrationDate ?? x.CreationDate))
+                {
+                    body.AppendChild(Paragraph(
+                        $"{idx}. {d.RegistrationNumber} от {(d.RegistrationDate ?? d.CreationDate):dd.MM.yyyy} — {d.Title}"));
+                    idx++;
+                }
+
+                body.AppendChild(Paragraph(string.Empty));
+                body.AppendChild(Paragraph($"Всего в дело включено документов: {documents.Count}."));
+                body.AppendChild(Paragraph($"Опись составлена: {DateTime.Now:dd.MM.yyyy}."));
+                main.Document.Save();
+            }
+        }
+
+        public void ExportFleetReport(DateTime from, DateTime to, string filePath)
+        {
+            if (string.IsNullOrWhiteSpace(filePath))
+                throw new ArgumentException("Путь к файлу обязателен.", nameof(filePath));
+            if (to < from) throw new ArgumentException("Период некорректен (To < From).");
+            if (_vehicles == null)
+                throw new InvalidOperationException("IVehicleRepository не зарегистрирован.");
+
+            var until = to.Date.AddDays(1).AddTicks(-1);
+
+            using (var workbook = new XLWorkbook())
+            {
+                var sheet = workbook.Worksheets.Add("Парк");
+                sheet.Cell(1, 1).Value = $"Отчёт по парку за {from:dd.MM.yyyy}–{to:dd.MM.yyyy}";
+                sheet.Range(1, 1, 1, 7).Merge().Style.Font.Bold = true;
+
+                sheet.Cell(2, 1).Value = "ТС";
+                sheet.Cell(2, 2).Value = "Гос. номер";
+                sheet.Cell(2, 3).Value = "Поездок";
+                sheet.Cell(2, 4).Value = "Часов в работе";
+                sheet.Cell(2, 5).Value = "Часов простоя";
+                sheet.Cell(2, 6).Value = "Заявок (документов)";
+                sheet.Cell(2, 7).Value = "Статус";
+                sheet.Range(2, 1, 2, 7).Style.Font.Bold = true;
+                sheet.Range(2, 1, 2, 7).Style.Fill.BackgroundColor = XLColor.LightSteelBlue;
+
+                int r = 3;
+                double periodHours = (until - from).TotalHours;
+                foreach (var v in _vehicles.ListVehicles())
+                {
+                    var trips = _vehicles.ListTrips(v.Id)
+                        .Where(t => t.EndDate >= from && t.StartDate <= until)
+                        .ToList();
+
+                    double busy = trips.Sum(t =>
+                    {
+                        var s = t.StartDate < from ? from : t.StartDate;
+                        var e = t.EndDate > until ? until : t.EndDate;
+                        return (e - s).TotalHours;
+                    });
+
+                    sheet.Cell(r, 1).Value = v.Model;
+                    sheet.Cell(r, 2).Value = v.LicensePlate;
+                    sheet.Cell(r, 3).Value = trips.Count;
+                    sheet.Cell(r, 4).Value = Math.Round(busy, 1);
+                    sheet.Cell(r, 5).Value = Math.Round(Math.Max(0, periodHours - busy), 1);
+                    sheet.Cell(r, 6).Value = trips.Count(t => t.DocumentId.HasValue);
+                    sheet.Cell(r, 7).Value = v.CurrentStatus.ToString();
+                    r++;
+                }
+                sheet.Columns().AdjustToContents();
+                workbook.SaveAs(filePath);
+            }
+        }
+
+        public void ExportInventoryTurnoverReport(DateTime from, DateTime to, string filePath)
+        {
+            if (string.IsNullOrWhiteSpace(filePath))
+                throw new ArgumentException("Путь к файлу обязателен.", nameof(filePath));
+            if (to < from) throw new ArgumentException("Период некорректен (To < From).");
+
+            var until = to.Date.AddDays(1).AddTicks(-1);
+
+            using (var workbook = new XLWorkbook())
+            {
+                var sheet = workbook.Worksheets.Add("Оборот склада");
+                sheet.Cell(1, 1).Value = $"Оборот склада за {from:dd.MM.yyyy}–{to:dd.MM.yyyy}";
+                sheet.Range(1, 1, 1, 6).Merge().Style.Font.Bold = true;
+
+                sheet.Cell(2, 1).Value = "Наименование";
+                sheet.Cell(2, 2).Value = "Категория";
+                sheet.Cell(2, 3).Value = "Остаток на начало";
+                sheet.Cell(2, 4).Value = "Приход";
+                sheet.Cell(2, 5).Value = "Расход";
+                sheet.Cell(2, 6).Value = "Остаток на конец";
+                sheet.Range(2, 1, 2, 6).Style.Font.Bold = true;
+                sheet.Range(2, 1, 2, 6).Style.Fill.BackgroundColor = XLColor.LightSteelBlue;
+
+                int r = 3;
+                foreach (var item in _inventory.ListItems().OrderBy(i => i.Name))
+                {
+                    var transactions = _inventory.ListTransactions(item.Id);
+                    int beforeFrom = transactions.Where(t => t.TransactionDate < from)
+                        .Sum(t => t.QuantityChanged);
+                    int incoming = transactions
+                        .Where(t => t.TransactionDate >= from && t.TransactionDate <= until && t.QuantityChanged > 0)
+                        .Sum(t => t.QuantityChanged);
+                    int outgoing = -transactions
+                        .Where(t => t.TransactionDate >= from && t.TransactionDate <= until && t.QuantityChanged < 0)
+                        .Sum(t => t.QuantityChanged);
+                    int closing = beforeFrom + incoming - outgoing;
+
+                    sheet.Cell(r, 1).Value = item.Name;
+                    sheet.Cell(r, 2).Value = FormatCategory(item.Category);
+                    sheet.Cell(r, 3).Value = beforeFrom;
+                    sheet.Cell(r, 4).Value = incoming;
+                    sheet.Cell(r, 5).Value = outgoing;
+                    sheet.Cell(r, 6).Value = closing;
+                    r++;
+                }
+                sheet.Columns().AdjustToContents();
+                workbook.SaveAs(filePath);
+            }
+        }
+
+        public void ExportDocumentAuditTrail(int documentId, string filePath)
+        {
+            if (string.IsNullOrWhiteSpace(filePath))
+                throw new ArgumentException("Путь к файлу обязателен.", nameof(filePath));
+            if (_audit == null)
+                throw new InvalidOperationException("IAuditService не зарегистрирован.");
+
+            var doc = _documents.GetById(documentId)
+                ?? throw new InvalidOperationException($"Документ #{documentId} не найден.");
+
+            var entries = _audit.Query(new AuditQueryFilter
+            {
+                EntityType = nameof(Document),
+                EntityId = documentId,
+            });
+
+            var pdf = new MinimalPdfWriter();
+            pdf.AddLine($"История документа {doc.RegistrationNumber}");
+            pdf.AddLine(new string('=', 60));
+            pdf.AddLine($"Заголовок: {doc.Title}");
+            pdf.AddLine($"Создан: {doc.CreationDate:dd.MM.yyyy HH:mm}");
+            pdf.AddLine($"Всего записей в журнале аудита: {entries.Count}");
+            pdf.AddBlank();
+            pdf.AddLine(string.Format("{0,-19} {1,-18} {2,-6} {3}", "Время", "Действие", "Актор", "Hash"));
+            pdf.AddLine(new string('-', 80));
+
+            foreach (var e in entries.OrderBy(x => x.Timestamp))
+            {
+                var hashShort = string.IsNullOrEmpty(e.Hash) ? "" : e.Hash.Substring(0, Math.Min(12, e.Hash.Length));
+                pdf.AddLine(string.Format("{0,-19} {1,-18} {2,-6} {3}",
+                    e.Timestamp.ToString("dd.MM.yyyy HH:mm:ss"),
+                    Truncate(e.ActionType.ToString(), 18),
+                    e.UserId?.ToString() ?? "—",
+                    hashShort));
+                var details = string.IsNullOrEmpty(e.Details) ? e.NewValues : e.Details;
+                if (!string.IsNullOrEmpty(details))
+                    pdf.AddLine("    " + Truncate(details, 90));
+            }
+
+            pdf.AddBlank();
+            pdf.AddLine($"Сформировано: {DateTime.Now:dd.MM.yyyy HH:mm:ss}");
+            pdf.Save(filePath);
+        }
+
+        private static string Truncate(string s, int max)
+        {
+            if (string.IsNullOrEmpty(s)) return string.Empty;
+            return s.Length <= max ? s : s.Substring(0, max - 1) + "…";
         }
     }
 }
