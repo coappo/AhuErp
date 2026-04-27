@@ -56,8 +56,11 @@ popd >nul
 set "CORE=%ROOT%\src\AhuErp.Core"
 set "MIGS=%CORE%\Migrations"
 set "GEN=%ROOT%\tools\MigrationGenerator"
-set "GENBIN=%GEN%\bin\Debug\net48"
 set "APPCFG=%GEN%\App.config"
+rem  GENEXE / GENEXEDIR определяются после сборки (находим .exe рекурсивно,
+rem  чтобы не зависеть от того, кладёт ли SDK в bin\Debug\ или bin\Debug\net48\)
+set "GENEXE="
+set "GENEXEDIR="
 
 echo.
 echo === AhuErp resx regenerator ===
@@ -117,8 +120,16 @@ copy /Y "%MIGS%\20260429000000_AddSignatures.resx"        "%BACKUPDIR%\" >nul
 copy /Y "%MIGS%\20260430000000_AddSearchIndex.resx"       "%BACKUPDIR%\" >nul
 echo Old .resx backed up to: %BACKUPDIR%
 
-pushd "%GENBIN%" >nul
-"%GENBIN%\MigrationGenerator.exe" "%MIGS%" "ResxSnapshot"
+for /f "delims=" %%F in ('dir /B /S /A:-D "%GEN%\bin\Debug\MigrationGenerator.exe" 2^>nul') do set "GENEXE=%%F"
+if not defined GENEXE (
+    echo [X] Build succeeded but MigrationGenerator.exe not found under %GEN%\bin\Debug
+    goto :err
+)
+for %%D in ("%GENEXE%") do set "GENEXEDIR=%%~dpD"
+echo Using: %GENEXE%
+
+pushd "%GENEXEDIR%" >nul || goto :err
+"%GENEXE%" "%MIGS%" "ResxSnapshot"
 set "RC=%ERRORLEVEL%"
 popd >nul
 if %RC% neq 0 goto :err
