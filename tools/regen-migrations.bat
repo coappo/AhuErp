@@ -70,7 +70,7 @@ echo Repo root           : %ROOT%
 echo Target migration    : %TARGETMIG%
 echo.
 
-rem --- 0/6: проверяем инструменты ------------------------------------------
+rem --- 0/7: проверяем инструменты ------------------------------------------
 where dotnet >nul 2>&1 || (
     echo [X] dotnet not found in PATH. Install .NET SDK from https://dotnet.microsoft.com/download
     goto :err
@@ -84,8 +84,8 @@ where powershell >nul 2>&1 || (
     goto :err
 )
 
-rem --- 1/6: патчим App.config (с бекапом) ----------------------------------
-echo === [1/6] Patching App.config connection string
+rem --- 1/7: патчим App.config (с бекапом) ----------------------------------
+echo === [1/7] Patching App.config connection string
 copy /Y "%APPCFG%" "%APPCFG%.bak" >nul || goto :err
 
 set "PATCHED_CONN=Data Source=%SQLSERVER%;Initial Catalog=%SCAFFOLD_DB%;Integrated Security=True;Encrypt=False;TrustServerCertificate=True;MultipleActiveResultSets=True;"
@@ -98,20 +98,20 @@ powershell -NoProfile -ExecutionPolicy Bypass -Command ^
     "$node.connectionString = '%PATCHED_CONN%';" ^
     "$xml.Save($cfg);" || goto :err
 
-rem --- 2/6: дропаем scaffold-БД --------------------------------------------
-echo === [2/6] Drop %SCAFFOLD_DB% (если существует)
+rem --- 2/7: дропаем scaffold-БД --------------------------------------------
+echo === [2/7] Drop %SCAFFOLD_DB% (если существует)
 sqlcmd -S "%SQLSERVER%" -E -b -Q "IF DB_ID('%SCAFFOLD_DB%') IS NOT NULL BEGIN ALTER DATABASE [%SCAFFOLD_DB%] SET SINGLE_USER WITH ROLLBACK IMMEDIATE; DROP DATABASE [%SCAFFOLD_DB%]; END" || goto :err
 
-rem --- 3/6: билдим Core ----------------------------------------------------
-echo === [3/6] Build AhuErp.Core
+rem --- 3/7: билдим Core ----------------------------------------------------
+echo === [3/7] Build AhuErp.Core
 dotnet build "%CORE%\AhuErp.Core.csproj" -c Debug -v minimal --nologo || goto :err
 
-rem --- 4/6: билдим MigrationGenerator --------------------------------------
-echo === [4/6] Build MigrationGenerator
+rem --- 4/7: билдим MigrationGenerator --------------------------------------
+echo === [4/7] Build MigrationGenerator
 dotnet build "%GEN%\MigrationGenerator.csproj" -c Debug -v minimal --nologo || goto :err
 
-rem --- 5/6: бекапим старые .resx и запускаем scaffolder --------------------
-echo === [5/6] Backup existing .resx and scaffold a fresh snapshot
+rem --- 5/7: бекапим старые .resx и запускаем scaffolder --------------------
+echo === [5/7] Backup existing .resx and scaffold a fresh snapshot
 set "BACKUPDIR=%ROOT%\Migrations.backup-%RANDOM%%RANDOM%"
 mkdir "%BACKUPDIR%" >nul 2>&1
 copy /Y "%MIGS%\20260427000000_AddOrgAndSubstitution.resx" "%BACKUPDIR%\" >nul
@@ -134,8 +134,8 @@ set "RC=%ERRORLEVEL%"
 popd >nul
 if %RC% neq 0 goto :err
 
-rem --- 6/6: подменяем .resx на свежий и удаляем временные файлы -----------
-echo === [6/6] Apply fresh snapshot to %TARGETMIG%.resx
+rem --- 6/7: подменяем .resx на свежий и удаляем временные файлы -----------
+echo === [6/7] Apply fresh snapshot to %TARGETMIG%.resx
 set "TEMPRESX="
 for /f "delims=" %%F in ('dir /B /OD "%MIGS%\*_ResxSnapshot.resx" 2^>nul') do set "TEMPRESX=%%F"
 if not defined TEMPRESX (
@@ -149,6 +149,17 @@ del "%MIGS%\!TEMPBASE!.cs"          >nul 2>&1
 del "%MIGS%\!TEMPBASE!.Designer.cs" >nul 2>&1
 del "%MIGS%\!TEMPRESX!"             >nul 2>&1
 
+rem --- 7/7: пересборка Core, чтобы новый .resx попал в EmbeddedResource ----
+rem  EF6 хранит снапшот ДВАЖДЫ: как файл .resx на диске и как embedded
+rem  resource внутри AhuErp.Core.dll. Add-Migration / migrate.exe читают
+rem  embedded версию, а не файл на диске. После подмены .resx нужно
+rem  заново слинковать AhuErp.Core, иначе VS PMC будет видеть старый
+rem  снапшот и Add-Migration TestEmpty покажет фантомные изменения.
+echo === [7/7] Rebuild AhuErp.Core to embed the fresh .resx
+del /Q "%CORE%\bin\Debug\AhuErp.Core.dll" >nul 2>&1
+del /Q "%CORE%\bin\Debug\net48\AhuErp.Core.dll" >nul 2>&1
+dotnet build "%CORE%\AhuErp.Core.csproj" -c Debug -v minimal --nologo --no-restore || goto :err
+
 call :restore_appconfig
 
 echo.
@@ -157,12 +168,15 @@ echo  Updated: %MIGS%\%TARGETMIG%.resx
 echo  Backup : %BACKUPDIR%
 echo.
 echo Next steps:
-echo   1. Открой решение в Visual Studio, дождись восстановления NuGet.
-echo   2. Tools - NuGet Package Manager - Package Manager Console:
+echo   1. Открой решение в Visual Studio.
+echo   2. ВАЖНО: Build - Rebuild Solution (Ctrl+Shift+B - Rebuild). Это
+echo      пересоберёт AhuErp.UI и подцепит свежий AhuErp.Core.dll с
+echo      обновлённым embedded .resx.
+echo   3. Tools - NuGet Package Manager - Package Manager Console:
 echo        Add-Migration TestEmpty -ProjectName AhuErp.Core -StartUpProjectName AhuErp.UI
 echo      Если Up()/Down() пусты - значит модель и слепок синхронны.
 echo      Удали TestEmpty (Remove-Migration) и закоммить только обновлённый .resx.
-echo   3. Если Up() не пустой - значит модель ушла дальше .resx, дополни код
+echo   4. Если Up() не пустой - значит модель ушла дальше .resx, дополни код
 echo      и повтори этот скрипт.
 echo.
 endlocal
