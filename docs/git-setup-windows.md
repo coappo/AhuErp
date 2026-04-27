@@ -152,8 +152,10 @@ git diff --cached
 git diff
 
 rem  ОПАСНО: выкинуть ВСЕ незакоммиченные изменения
-git reset --hard HEAD       <-- использовать только если уверен
-git clean -fd               <-- удалит и неотслеживаемые файлы
+rem    git reset --hard HEAD   - использовать только если уверен
+rem    git clean -fd           - удалит и неотслеживаемые файлы
+git reset --hard HEAD
+git clean -fd
 ```
 
 Если не уверен — лучше сначала закоммитить временный коммит

@@ -132,7 +132,7 @@ if not defined TEMPRESX (
     goto :err
 )
 set "TEMPBASE=!TEMPRESX:.resx=!"
-copy /Y "%MIGS%\!TEMPRESX!" "%MIGS%\%TARGETMIG%.resx" >nul
+copy /Y "%MIGS%\!TEMPRESX!" "%MIGS%\%TARGETMIG%.resx" >nul || goto :err
 
 del "%MIGS%\!TEMPBASE!.cs"          >nul 2>&1
 del "%MIGS%\!TEMPBASE!.Designer.cs" >nul 2>&1
