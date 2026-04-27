@@ -18,6 +18,7 @@ namespace AhuErp.Core.Services
         private readonly IWorkflowService _workflow;
         private readonly ISubstitutionService _substitution;
         private readonly IDelegationRepository _delegations;
+        private readonly INotificationService _notifications;
 
         public TaskService(
             ITaskRepository tasks,
@@ -25,7 +26,8 @@ namespace AhuErp.Core.Services
             IAuditService audit,
             IWorkflowService workflow = null,
             ISubstitutionService substitution = null,
-            IDelegationRepository delegations = null)
+            IDelegationRepository delegations = null,
+            INotificationService notifications = null)
         {
             _tasks = tasks ?? throw new ArgumentNullException(nameof(tasks));
             _documents = documents ?? throw new ArgumentNullException(nameof(documents));
@@ -33,6 +35,7 @@ namespace AhuErp.Core.Services
             _workflow = workflow;
             _substitution = substitution;
             _delegations = delegations;
+            _notifications = notifications;
         }
 
         public DocumentResolution AddResolution(int documentId, int authorId, string text)
@@ -121,6 +124,12 @@ namespace AhuErp.Core.Services
                     newValues: $"From={executorId}; To={actualExecutorId}; Reason=Substitution",
                     details: $"DelegationId={delegation.Id}");
             }
+
+            // Phase 9: уведомление фактическому исполнителю.
+            _notifications?.Create(actualExecutorId, NotificationKind.TaskAssigned,
+                $"Назначено поручение #{task.Id}",
+                $"Документ #{doc.Id}. Срок: {deadline:dd.MM.yyyy HH:mm}. {description}",
+                docId: doc.Id, taskId: task.Id);
 
             return task;
         }

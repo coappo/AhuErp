@@ -58,6 +58,10 @@ namespace AhuErp.Core.Data
         public virtual DbSet<Substitution> Substitutions { get; set; }
         public virtual DbSet<TaskDelegation> TaskDelegations { get; set; }
 
+        // Phase 9 — уведомления и пользовательские предпочтения.
+        public virtual DbSet<Notification> Notifications { get; set; }
+        public virtual DbSet<NotificationPreference> NotificationPreferences { get; set; }
+
         protected override void OnModelCreating(DbModelBuilder modelBuilder)
         {
             modelBuilder.Conventions.Remove<PluralizingTableNameConvention>();
@@ -335,6 +339,23 @@ namespace AhuErp.Core.Data
                 .HasRequired(d => d.ToEmployee)
                 .WithMany()
                 .HasForeignKey(d => d.ToEmployeeId)
+                .WillCascadeOnDelete(false);
+
+            // Phase 9 — Notifications.
+            modelBuilder.Entity<Notification>().ToTable("Notifications");
+            modelBuilder.Entity<Notification>()
+                .Ignore(n => n.IsRead);
+            modelBuilder.Entity<Notification>()
+                .HasRequired(n => n.Recipient)
+                .WithMany()
+                .HasForeignKey(n => n.RecipientId)
+                .WillCascadeOnDelete(false);
+
+            modelBuilder.Entity<NotificationPreference>().ToTable("NotificationPreferences");
+            modelBuilder.Entity<NotificationPreference>()
+                .HasRequired(p => p.Employee)
+                .WithMany()
+                .HasForeignKey(p => p.EmployeeId)
                 .WillCascadeOnDelete(false);
 
             base.OnModelCreating(modelBuilder);

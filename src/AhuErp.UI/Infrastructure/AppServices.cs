@@ -87,6 +87,12 @@ namespace AhuErp.UI.Infrastructure
             services.AddSingleton<IApprovalRepository, EfApprovalRepository>();
             services.AddSingleton<IApprovalService, ApprovalService>();
 
+            // Phase 9 — уведомления. NoOpEmailGateway по умолчанию; реальный
+            // SmtpEmailGateway включается через ключ App.config в проде.
+            services.AddSingleton<INotificationRepository, EfNotificationRepository>();
+            services.AddSingleton<IEmailGateway, NoOpEmailGateway>();
+            services.AddSingleton<INotificationService, NotificationService>();
+
             services.AddSingleton<IReportService>(sp => new ReportService(
                 sp.GetRequiredService<IInventoryRepository>(),
                 sp.GetRequiredService<IDocumentRepository>(),
@@ -114,6 +120,7 @@ namespace AhuErp.UI.Infrastructure
             services.AddTransient<SearchViewModel>();
             services.AddTransient<OrgStructureViewModel>();
             services.AddTransient<SubstitutionsViewModel>();
+            services.AddTransient<MyDesktopViewModel>();
         }
     }
 }

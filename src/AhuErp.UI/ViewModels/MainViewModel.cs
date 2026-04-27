@@ -30,6 +30,11 @@ namespace AhuErp.UI.ViewModels
         [ObservableProperty]
         private string currentUserRoleDisplayName;
 
+        private readonly INotificationService _notifications;
+
+        [ObservableProperty]
+        private int unreadNotifications;
+
         public MainViewModel(IAuthService auth,
                              DashboardViewModel dashboardVm,
                              OfficeViewModel officeVm,
@@ -44,12 +49,16 @@ namespace AhuErp.UI.ViewModels
                              JournalViewModel journalVm,
                              SearchViewModel searchVm,
                              OrgStructureViewModel orgStructureVm,
-                             SubstitutionsViewModel substitutionsVm)
+                             SubstitutionsViewModel substitutionsVm,
+                             MyDesktopViewModel myDesktopVm,
+                             INotificationService notifications)
         {
             _auth = auth ?? throw new ArgumentNullException(nameof(auth));
+            _notifications = notifications ?? throw new ArgumentNullException(nameof(notifications));
 
             NavigationItems = new ObservableCollection<NavigationItem>
             {
+                new NavigationItem("Мой рабочий стол", RolePolicy.MyDesktop, myDesktopVm),
                 new NavigationItem("Дашборд",    RolePolicy.Dashboard, dashboardVm),
                 new NavigationItem("РКК (документы)", RolePolicy.Office, rkkVm),
                 new NavigationItem("Документационное обеспечение", RolePolicy.Office,    officeVm),
@@ -90,6 +99,16 @@ namespace AhuErp.UI.ViewModels
             if (item != null && item.IsAllowed) SelectedNavigationItem = item;
         }
 
+        /// <summary>
+        /// Phase 9 — обновить счётчик непрочитанных в шапке. Дёргается
+        /// DispatcherTimer-ом из <c>App.xaml.cs</c> + при ручной навигации.
+        /// </summary>
+        public void RefreshUnreadCount()
+        {
+            var me = _auth.CurrentEmployee;
+            UnreadNotifications = me == null ? 0 : _notifications.CountUnread(me.Id);
+        }
+
         [RelayCommand]
         private void Logout()
         {
@@ -115,6 +134,8 @@ namespace AhuErp.UI.ViewModels
 
             CurrentUserDisplayName = employee.FullName;
             CurrentUserRoleDisplayName = EnumDisplayConverter.Translate(employee.Role);
+
+            RefreshUnreadCount();
         }
     }
 }

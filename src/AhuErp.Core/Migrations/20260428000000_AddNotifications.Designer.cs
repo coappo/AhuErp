@@ -7,13 +7,13 @@ namespace AhuErp.Core.Migrations
     using System.Resources;
 
     [GeneratedCode("EntityFramework.Migrations", "6.4.4")]
-    public sealed partial class AddOrgAndSubstitution : IMigrationMetadata
+    public sealed partial class AddNotifications : IMigrationMetadata
     {
-        private readonly ResourceManager Resources = new ResourceManager(typeof(AddOrgAndSubstitution));
+        private readonly ResourceManager Resources = new ResourceManager(typeof(AddNotifications));
 
         string IMigrationMetadata.Id
         {
-            get { return "20260427000000_AddOrgAndSubstitution"; }
+            get { return "20260428000000_AddNotifications"; }
         }
 
         string IMigrationMetadata.Source
