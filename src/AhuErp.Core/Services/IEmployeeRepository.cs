@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using AhuErp.Core.Models;
 
 namespace AhuErp.Core.Services
@@ -14,5 +15,13 @@ namespace AhuErp.Core.Services
         /// если сотрудника нет.
         /// </summary>
         Employee FindByFullName(string fullName);
+
+        /// <summary>Сотрудник по идентификатору; null — если не найден.</summary>
+        Employee GetById(int id);
+
+        /// <summary>
+        /// Все сотрудники (Phase 11 — для UI оргструктуры и замещений).
+        /// </summary>
+        IReadOnlyList<Employee> ListAll();
     }
 }

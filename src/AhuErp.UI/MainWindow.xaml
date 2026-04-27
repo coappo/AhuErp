@@ -52,6 +52,15 @@
         <DataTemplate DataType="{x:Type vm:ReportsViewModel}">
             <views:ReportsView />
         </DataTemplate>
+        <DataTemplate DataType="{x:Type vm:OrgStructureViewModel}">
+            <views:OrgStructureView />
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type vm:SubstitutionsViewModel}">
+            <views:SubstitutionsView />
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type vm:MyDesktopViewModel}">
+            <views:MyDesktopView />
+        </DataTemplate>
     </Window.Resources>
 
     <Grid>
@@ -91,15 +100,28 @@
                         Margin="12,0,12,12"
                         Padding="12,8"
                         CornerRadius="4">
-                    <StackPanel>
-                        <TextBlock Text="{Binding CurrentUserDisplayName}"
-                                   Foreground="{StaticResource Brush.Sidebar.Foreground}"
-                                   FontSize="13" FontWeight="SemiBold"
-                                   TextWrapping="Wrap" />
-                        <TextBlock Text="{Binding CurrentUserRoleDisplayName}"
-                                   Foreground="{StaticResource Brush.Sidebar.Accent}"
-                                   FontSize="11" Margin="0,2,0,0" />
-                    </StackPanel>
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Grid.Column="0">
+                            <TextBlock Text="{Binding CurrentUserDisplayName}"
+                                       Foreground="{StaticResource Brush.Sidebar.Foreground}"
+                                       FontSize="13" FontWeight="SemiBold"
+                                       TextWrapping="Wrap" />
+                            <TextBlock Text="{Binding CurrentUserRoleDisplayName}"
+                                       Foreground="{StaticResource Brush.Sidebar.Accent}"
+                                       FontSize="11" Margin="0,2,0,0" />
+                        </StackPanel>
+                        <!-- Phase 9 — индикатор непрочитанных уведомлений -->
+                        <Border Grid.Column="1" Background="#3B82F6" Padding="6,2" CornerRadius="10"
+                                VerticalAlignment="Center" Margin="8,0,0,0"
+                                ToolTip="Непрочитанные уведомления">
+                            <TextBlock Text="{Binding UnreadNotifications}" Foreground="White"
+                                       FontWeight="Bold" FontSize="11" />
+                        </Border>
+                    </Grid>
                 </Border>
 
                 <Button DockPanel.Dock="Bottom"

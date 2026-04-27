@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 
@@ -31,6 +32,23 @@ namespace AhuErp.Core.Models
         /// </summary>
         [StringLength(512)]
         public string PasswordHash { get; set; }
+
+        /// <summary>
+        /// E-mail сотрудника (Phase 9). Используется <c>SmtpEmailGateway</c>
+        /// при отправке нотификаций; null/пусто → канал e-mail отключён.
+        /// </summary>
+        [StringLength(256)]
+        public string Email { get; set; }
+
+        /// <summary>Подразделение сотрудника (Phase 11).</summary>
+        public int? DepartmentId { get; set; }
+        public virtual Department Department { get; set; }
+
+        /// <summary>Активен ли сотрудник (Phase 11). false = уволен/деактивирован.</summary>
+        public bool IsActive { get; set; } = true;
+
+        /// <summary>Дата прекращения трудовых отношений (Phase 11).</summary>
+        public DateTime? TerminatedAt { get; set; }
 
         public virtual ICollection<Document> AssignedDocuments { get; set; } = new HashSet<Document>();
     }
