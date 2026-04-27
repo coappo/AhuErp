@@ -24,19 +24,25 @@ namespace AhuErp.Core.Services
         private readonly IAuditService _audit;
         private readonly IWorkflowService _workflow;
         private readonly ISignatureService _signatures;
+        private readonly ISubstitutionService _substitution;
+        private readonly INotificationService _notifications;
 
         public ApprovalService(
             IApprovalRepository repository,
             IDocumentRepository documents,
             IAuditService audit,
             IWorkflowService workflow = null,
-            ISignatureService signatures = null)
+            ISignatureService signatures = null,
+            ISubstitutionService substitution = null,
+            INotificationService notifications = null)
         {
             _repository = repository ?? throw new ArgumentNullException(nameof(repository));
             _documents = documents ?? throw new ArgumentNullException(nameof(documents));
             _audit = audit ?? throw new ArgumentNullException(nameof(audit));
             _workflow = workflow;
             _signatures = signatures;
+            _substitution = substitution;
+            _notifications = notifications;
         }
 
         public IReadOnlyList<ApprovalRouteTemplate> ListTemplates(bool activeOnly = true)
@@ -76,15 +82,24 @@ namespace AhuErp.Core.Services
                     "Этапы шаблона должны иметь конкретного согласующего (ApproverEmployeeId).");
 
             var approvals = new List<DocumentApproval>();
+            var now = DateTime.Now;
             foreach (var stage in stages)
             {
+                // Phase 11: согласующего может замещать другой сотрудник.
+                int actualApproverId = stage.ApproverEmployeeId.Value;
+                if (_substitution != null)
+                {
+                    actualApproverId = _substitution.ResolveActualExecutor(
+                        actualApproverId, now, SubstitutionScope.ApprovalsOnly);
+                }
+
                 var approval = _repository.AddApproval(new DocumentApproval
                 {
                     DocumentId = doc.Id,
                     StageId = stage.Id,
                     Order = stage.Order,
                     IsParallel = stage.IsParallel,
-                    ApproverId = stage.ApproverEmployeeId.Value,
+                    ApproverId = actualApproverId,
                     Decision = ApprovalDecision.Pending
                 });
                 approvals.Add(approval);
@@ -95,6 +110,21 @@ namespace AhuErp.Core.Services
 
             _audit.Record(AuditActionType.ApprovalSent, nameof(Document), doc.Id, actorId,
                 newValues: $"TemplateId={templateId}; Stages={stages.Count}");
+
+            // Phase 9: уведомление согласующим о необходимости рассмотрения.
+            // Параллельные этапы получают уведомление сразу, последовательные —
+            // на каждом этапе отдельно (упрощение: всем сразу — TickReminders
+            // позаботится о повторных напоминаниях о дедлайнах).
+            if (_notifications != null)
+            {
+                foreach (var a in approvals)
+                {
+                    _notifications.Create(a.ApproverId, NotificationKind.ApprovalRequired,
+                        $"Документ на согласование (#{doc.Id})",
+                        $"Маршрут «{template.Name}», этап #{a.Order}. Документ: {doc.Title}",
+                        docId: doc.Id, approvalId: a.Id);
+                }
+            }
 
             return approvals.AsReadOnly();
         }
@@ -152,6 +182,15 @@ namespace AhuErp.Core.Services
                         // Подпись уже стояла или сотрудник недоступен — не валим бизнес-операцию.
                     }
                 }
+            }
+
+            // Phase 9: уведомить автора документа о принятом решении.
+            if (_notifications != null && doc.AuthorId.HasValue)
+            {
+                _notifications.Create(doc.AuthorId.Value, NotificationKind.ApprovalDecided,
+                    $"Решение по согласованию (#{approval.Id})",
+                    $"Документ «{doc.Title}», этап #{approval.Order}: {decision}.",
+                    docId: doc.Id, approvalId: approval.Id);
             }
 
             return approval;

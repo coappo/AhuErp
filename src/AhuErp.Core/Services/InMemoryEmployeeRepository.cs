@@ -27,6 +27,8 @@ namespace AhuErp.Core.Services
 
         public Employee GetById(int id) => _employees.FirstOrDefault(e => e.Id == id);
 
+        public IReadOnlyList<Employee> ListAll() => _employees.AsReadOnly();
+
         public void Add(Employee employee)
         {
             if (employee == null) throw new ArgumentNullException(nameof(employee));

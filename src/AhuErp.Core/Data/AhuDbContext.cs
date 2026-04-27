@@ -55,6 +55,14 @@ namespace AhuErp.Core.Data
         public virtual DbSet<DocumentSignature> DocumentSignatures { get; set; }
         public virtual DbSet<AuditLog> AuditLogs { get; set; }
 
+        // Phase 11 — оргструктура и замещения.
+        public virtual DbSet<Substitution> Substitutions { get; set; }
+        public virtual DbSet<TaskDelegation> TaskDelegations { get; set; }
+
+        // Phase 9 — уведомления и пользовательские предпочтения.
+        public virtual DbSet<Notification> Notifications { get; set; }
+        public virtual DbSet<NotificationPreference> NotificationPreferences { get; set; }
+
         protected override void OnModelCreating(DbModelBuilder modelBuilder)
         {
             modelBuilder.Conventions.Remove<PluralizingTableNameConvention>();
@@ -307,6 +315,71 @@ namespace AhuErp.Core.Data
                 .HasOptional(a => a.User)
                 .WithMany()
                 .HasForeignKey(a => a.UserId)
+                .WillCascadeOnDelete(false);
+
+            // ---- Phase 11: иерархия отделов + замещения + делегирования. ----
+            modelBuilder.Entity<Department>()
+                .HasOptional(d => d.ParentDepartment)
+                .WithMany(d => d.ChildDepartments)
+                .HasForeignKey(d => d.ParentDepartmentId)
+                .WillCascadeOnDelete(false);
+
+            modelBuilder.Entity<Department>()
+                .HasOptional(d => d.HeadEmployee)
+                .WithMany()
+                .HasForeignKey(d => d.HeadEmployeeId)
+                .WillCascadeOnDelete(false);
+
+            modelBuilder.Entity<Employee>()
+                .HasOptional(e => e.Department)
+                .WithMany()
+                .HasForeignKey(e => e.DepartmentId)
+                .WillCascadeOnDelete(false);
+
+            modelBuilder.Entity<Substitution>().ToTable("Substitutions");
+            modelBuilder.Entity<Substitution>()
+                .HasRequired(s => s.OriginalEmployee)
+                .WithMany()
+                .HasForeignKey(s => s.OriginalEmployeeId)
+                .WillCascadeOnDelete(false);
+            modelBuilder.Entity<Substitution>()
+                .HasRequired(s => s.SubstituteEmployee)
+                .WithMany()
+                .HasForeignKey(s => s.SubstituteEmployeeId)
+                .WillCascadeOnDelete(false);
+
+            modelBuilder.Entity<TaskDelegation>().ToTable("TaskDelegations");
+            modelBuilder.Entity<TaskDelegation>()
+                .HasRequired(d => d.Task)
+                .WithMany()
+                .HasForeignKey(d => d.TaskId)
+                .WillCascadeOnDelete(false);
+            modelBuilder.Entity<TaskDelegation>()
+                .HasRequired(d => d.FromEmployee)
+                .WithMany()
+                .HasForeignKey(d => d.FromEmployeeId)
+                .WillCascadeOnDelete(false);
+            modelBuilder.Entity<TaskDelegation>()
+                .HasRequired(d => d.ToEmployee)
+                .WithMany()
+                .HasForeignKey(d => d.ToEmployeeId)
+                .WillCascadeOnDelete(false);
+
+            // Phase 9 — Notifications.
+            modelBuilder.Entity<Notification>().ToTable("Notifications");
+            modelBuilder.Entity<Notification>()
+                .Ignore(n => n.IsRead);
+            modelBuilder.Entity<Notification>()
+                .HasRequired(n => n.Recipient)
+                .WithMany()
+                .HasForeignKey(n => n.RecipientId)
+                .WillCascadeOnDelete(false);
+
+            modelBuilder.Entity<NotificationPreference>().ToTable("NotificationPreferences");
+            modelBuilder.Entity<NotificationPreference>()
+                .HasRequired(p => p.Employee)
+                .WithMany()
+                .HasForeignKey(p => p.EmployeeId)
                 .WillCascadeOnDelete(false);
 
             base.OnModelCreating(modelBuilder);
