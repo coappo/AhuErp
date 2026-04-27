@@ -279,8 +279,8 @@ INSERT INTO dbo.DocumentTasks (Id, DocumentId, ResolutionId, ParentTaskId, Autho
     -- Закрытая задача (DocumentTaskStatus.Completed=3)
     (4, 6, NULL, NULL, 5, 9, 4, NULL, N'Выдать со склада 10 пачек бумаги A4.',
      DATEADD(DAY, -16, GETDATE()), DATEADD(DAY, -10, GETDATE()), 3, DATEADD(DAY, -11, GETDATE()), N'Выдано полностью, расписка в журнале.', 0),
-    -- Закрытая задача
-    (5, 1, NULL, 1, 3, 3, 1, NULL, N'Подготовить и направить ответ в Минфин.',
+    -- Закрытая задача (без родителя — Task #1 принадлежит другому документу)
+    (5, 1, NULL, NULL, 3, 3, 1, NULL, N'Подготовить и направить ответ в Минфин.',
      DATEADD(DAY, -25, GETDATE()), DATEADD(DAY, -22, GETDATE()), 3, DATEADD(DAY, -22, GETDATE()), N'Ответ направлен почтой РФ, трек 80012345.', 1),
     -- Подзадача под задачу 3
     (6, 3, 2, 3, 4, 9, 4, NULL, N'Выдать со склада 4 картриджа Canon 725.',
@@ -307,13 +307,19 @@ INSERT INTO dbo.ApprovalStages (Id, RouteTemplateId, [Order], IsParallel, Approv
     (7, 2, 4, 0, 1, NULL, N'Директор');
 SET IDENTITY_INSERT dbo.ApprovalStages OFF;
 
-/* Активный маршрут на документ #3 (СЗ о картриджах) — первая стадия согласована.
+/* Активные маршруты:
+ *   #3 СЗ о картриджах   — 1я стадия принята, стоит на 2й (Иванова)
+ *   #11 Распоряжение     — первичное рассмотрение Ивановой
+ *   #8 Договор           — 1я стадия принята (Юрист Петрова),
+ *                            стоит на 2й (Зав. складом Зайченко)
  * ApprovalDecision: Pending=0, Approved=1, Rejected=2, Comments=3 */
 SET IDENTITY_INSERT dbo.DocumentApprovals ON;
 INSERT INTO dbo.DocumentApprovals (Id, DocumentId, StageId, [Order], IsParallel, ApproverId, Decision, Comment, DecisionDate) VALUES
     (1, 3,  1,    1, 0, 4, 1, N'Согласовано без замечаний.', DATEADD(DAY, -2, GETDATE())),
     (2, 3,  2,    2, 0, 2, 0, NULL,                          NULL),
-    (3, 11, NULL, 1, 0, 2, 0, N'На рассмотрении.',           NULL);
+    (3, 11, NULL, 1, 0, 2, 0, N'На рассмотрении.',           NULL),
+    (4, 8,  4,    1, 0, 3, 1, N'Согласовано юристом.',       DATEADD(DAY, -2, GETDATE())),
+    (5, 8,  5,    2, 0, 9, 0, NULL,                          NULL);
 SET IDENTITY_INSERT dbo.DocumentApprovals OFF;
 
 /* ============================================================================
@@ -439,7 +445,7 @@ INSERT INTO dbo.Notifications (Id, RecipientId, Kind, Title, Body, RelatedDocume
     (11, 9, 0, N'Поручение: выдать 4 картриджа Canon 725', N'Получатель — Дорофеев А.В.',
         3, 6, NULL, DATEADD(DAY, -3, GETDATE()),    DATEADD(DAY, -2, GETDATE()),   0, NULL),
     (12, 9, 3, N'Запрос на согласование: ДОГ-2026-00004', N'Договор поставки — стадия «Зав. складом».',
-        8, NULL, 2, DATEADD(DAY, -2, GETDATE()),    NULL,                          2, DATEADD(DAY, -2, GETDATE())),
+        8, NULL, 5, DATEADD(DAY, -2, GETDATE()),    NULL,                          2, DATEADD(DAY, -2, GETDATE())),
     -- Иванова (id=2) — Approval pending
     (13, 2, 3, N'На согласование: РСП-2026-00009',         N'Распоряжение об инвентаризации ТМЦ.',
         11, NULL, 3, DATEADD(DAY, -1, GETDATE()),   NULL,                          2, DATEADD(DAY, -1, GETDATE())),
