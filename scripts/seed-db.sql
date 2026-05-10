@@ -172,10 +172,11 @@ SET IDENTITY_INSERT dbo.Vehicles ON;
 INSERT INTO dbo.Vehicles (Id, Model, LicensePlate, CurrentStatus, FuelType, FuelConsumptionPer100Km,
                           VehicleClass, Make, [Year], Vin, OdometerCurrent, NextMaintenanceOdometer,
                           OsagoExpiry, TechInspectionExpiry) VALUES
+    /* #2 и #4: статусы выровнены с фактическими путевыми листами (Trip #2 закрыт 5 дн. назад, Trip #4 активен). */
     (1, N'Largus универсал',  N'А123БВ 64', 0, 0,  9.50, 1, N'Lada',    2021, N'XTAFS035LM0934512',  78420,  85000, DATEADD(MONTH,  4, GETDATE()), DATEADD(MONTH, 5, GETDATE())),
-    (2, N'NEXT грузовой',     N'В777ТТ 64', 1, 1, 14.00, 1, N'ГАЗ',      2019, N'X9633440K0046721', 142300, 150000, DATEADD(MONTH,  1, GETDATE()), DATEADD(MONTH, 2, GETDATE())),
+    (2, N'NEXT грузовой',     N'В777ТТ 64', 0, 1, 14.00, 1, N'ГАЗ',      2019, N'X9633440K0046721', 142300, 150000, DATEADD(MONTH,  1, GETDATE()), DATEADD(MONTH, 2, GETDATE())),
     (3, N'Патриот',           N'Е111КХ 64', 2, 0, 13.20, 3, N'УАЗ',      2018, N'XTT316300J1015533', 98750, 100000, DATEADD(MONTH, -1, GETDATE()), DATEADD(MONTH, 3, GETDATE())),
-    (4, N'Logan',             N'К234АА 64', 0, 0,  7.80, 0, N'Renault',  2022, N'X7L4SRDC2KH123456', 41200,  50000, DATEADD(MONTH,  6, GETDATE()), DATEADD(MONTH, 9, GETDATE()));
+    (4, N'Logan',             N'К234АА 64', 1, 0,  7.80, 0, N'Renault',  2022, N'X7L4SRDC2KH123456', 41200,  50000, DATEADD(MONTH,  6, GETDATE()), DATEADD(MONTH, 9, GETDATE()));
 SET IDENTITY_INSERT dbo.Vehicles OFF;
 
 /* ============================================================================

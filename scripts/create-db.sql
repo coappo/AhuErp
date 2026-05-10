@@ -287,6 +287,23 @@ IF COL_LENGTH(N'dbo.Documents', N'CurrentVersionAttachmentId') IS NULL
     ALTER TABLE dbo.Documents ADD CurrentVersionAttachmentId INT NULL;
 GO
 
+/* Phase 14 — Kind / IsSentToVendor для TPH ItTicket по миграции
+   AddItoExpansionPhase14 должны быть NULLable (EF6 conventions для подкласса).
+   В ранних версиях этого скрипта они были созданы как NOT NULL DEFAULT (0) —
+   приводим к актуальному виду на старых БД, попутно убирая default-constraint. */
+IF EXISTS (SELECT 1 FROM sys.default_constraints WHERE [name] = N'DF_Documents_Kind')
+    ALTER TABLE dbo.Documents DROP CONSTRAINT DF_Documents_Kind;
+GO
+IF COLUMNPROPERTY(OBJECT_ID(N'dbo.Documents'), N'Kind', 'AllowsNull') = 0
+    ALTER TABLE dbo.Documents ALTER COLUMN Kind INT NULL;
+GO
+IF EXISTS (SELECT 1 FROM sys.default_constraints WHERE [name] = N'DF_Documents_IsSentToVendor')
+    ALTER TABLE dbo.Documents DROP CONSTRAINT DF_Documents_IsSentToVendor;
+GO
+IF COLUMNPROPERTY(OBJECT_ID(N'dbo.Documents'), N'IsSentToVendor', 'AllowsNull') = 0
+    ALTER TABLE dbo.Documents ALTER COLUMN IsSentToVendor BIT NULL;
+GO
+
 /* ---------- 3. Vehicles --------------------------------------------------- */
 IF OBJECT_ID(N'dbo.Vehicles', N'U') IS NULL
 BEGIN
