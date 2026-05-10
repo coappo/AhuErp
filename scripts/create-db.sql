@@ -1008,8 +1008,10 @@ BEGIN
         Success           BIT             NOT NULL CONSTRAINT DF_LoginAttempts_Success       DEFAULT (0),
         FailureReason     INT             NOT NULL CONSTRAINT DF_LoginAttempts_FailureReason DEFAULT (0),
         CONSTRAINT PK_dbo_LoginAttempts PRIMARY KEY CLUSTERED (Id ASC),
+        /* WillCascadeOnDelete(false) в AhuDbContext — журнал попыток входа
+           переживает удаление сотрудника как security audit trail. */
         CONSTRAINT [FK_dbo.LoginAttempts_dbo.Employees_EmployeeId]
-            FOREIGN KEY (EmployeeId) REFERENCES dbo.Employees (Id) ON DELETE CASCADE
+            FOREIGN KEY (EmployeeId) REFERENCES dbo.Employees (Id)
     );
     CREATE NONCLUSTERED INDEX IX_LoginAttempts_EmployeeId ON dbo.LoginAttempts (EmployeeId);
     CREATE NONCLUSTERED INDEX IX_LoginAttempts_Timestamp  ON dbo.LoginAttempts (Timestamp DESC);
