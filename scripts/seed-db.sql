@@ -181,8 +181,9 @@ SET IDENTITY_INSERT dbo.Vehicles OFF;
 
 /* ============================================================================
  * 6. СЕТЕВЫЕ СЕГМЕНТЫ И ОБОРУДОВАНИЕ ИТО (Phase 14)
- *    Equipment.Type: Server=0, Switch=1, AccessPoint=2, Printer=3, Workstation=4
- *    Equipment.Status: InService=0, Faulty=1, Decommissioned=2.
+ *    EquipmentType: Pc=0, Printer=1, Switch=2, AccessPoint=3, IpPhone=4,
+ *                   IpCamera=5, Server=6, VideoConferenceUnit=7, Ups=8, Other=99.
+ *    EquipmentStatus: Working=0, InRepair=1, SentToVendor=2, Decommissioned=3, InReserve=4.
  * ========================================================================== */
 SET IDENTITY_INSERT dbo.NetworkSegments ON;
 INSERT INTO dbo.NetworkSegments (Id, [Name], Vlan, IpRange, SubnetMask, Gateway, Dns, Notes) VALUES
@@ -195,12 +196,15 @@ SET IDENTITY_INSERT dbo.NetworkSegments OFF;
 SET IDENTITY_INSERT dbo.Equipment ON;
 INSERT INTO dbo.Equipment (Id, InventoryNumber, [Type], Model, SerialNumber, MacAddress, IpAddress, Room,
                            ResponsibleEmployeeId, InServiceDate, WarrantyExpiry, [Status], NetworkSegmentId, Notes) VALUES
-    (1, N'ИТО-0001', 0, N'HP ProLiant DL380 Gen10', N'CZJ9230XYZ',  N'AA:BB:CC:DD:EE:01', N'192.168.10.10', N'310', 4, DATEADD(YEAR, -3, GETDATE()), DATEADD(YEAR,  1, GETDATE()), 0, 1,    N'Контроллер домена, файловый сервер'),
-    (2, N'ИТО-0014', 1, N'Cisco SG250-26',          N'FOC2336X1AB', N'AA:BB:CC:DD:EE:14', N'192.168.10.2',  N'310', 5, DATEADD(YEAR, -2, GETDATE()), DATEADD(YEAR,  2, GETDATE()), 0, 1,    N'Управляемый коммутатор серверной'),
-    (3, N'ИТО-0027', 2, N'TP-Link EAP245',          N'2218A40023',  N'AA:BB:CC:DD:EE:27', N'192.168.20.20', N'207', 5, DATEADD(YEAR, -1, GETDATE()), DATEADD(MONTH, 4, GETDATE()), 1, 2,    N'Точка доступа Wi-Fi канцелярии (нестабильна с 2026-04)'),
-    (4, N'ИТО-0033', 3, N'Canon LBP6030',           N'AABC012345',  NULL,                  NULL,             N'305', 5, DATEADD(YEAR, -2, GETDATE()), NULL,                          0, NULL, N'Принтер ИТО (требуется замена тонера)'),
-    (5, N'ИТО-0034', 3, N'Canon LBP6030',           N'AABC012346',  NULL,                  NULL,             N'305', 5, DATEADD(YEAR, -2, GETDATE()), NULL,                          0, NULL, N'Принтер ИТО (требуется замена тонера)'),
-    (6, N'ИТО-0078', 4, N'HP EliteDesk 800 G5',     N'2UA0245TR1',  N'AA:BB:CC:DD:EE:78', N'192.168.20.78', N'207', 3, DATEADD(YEAR, -1, GETDATE()), DATEADD(YEAR,  2, GETDATE()), 0, 2,    N'АРМ Петровой');
+    /* Исправлены коды EquipmentType / EquipmentStatus в соответствии с фактическими
+       enum'ами в src/AhuErp.Core/Models/EquipmentType.cs и EquipmentStatus.cs.
+       Сервер #1 помечен как SentToVendor=2 (парный с ItTicket #13.IsSentToVendor=1). */
+    (1, N'ИТО-0001', 6, N'HP ProLiant DL380 Gen10', N'CZJ9230XYZ',  N'AA:BB:CC:DD:EE:01', N'192.168.10.10', N'310', 4, DATEADD(YEAR, -3, GETDATE()), DATEADD(YEAR,  1, GETDATE()), 2, 1,    N'Контроллер домена, файловый сервер (в сервисе по тикету ИТО-2026-00104)'),
+    (2, N'ИТО-0014', 2, N'Cisco SG250-26',          N'FOC2336X1AB', N'AA:BB:CC:DD:EE:14', N'192.168.10.2',  N'310', 5, DATEADD(YEAR, -2, GETDATE()), DATEADD(YEAR,  2, GETDATE()), 0, 1,    N'Управляемый коммутатор серверной'),
+    (3, N'ИТО-0027', 3, N'TP-Link EAP245',          N'2218A40023',  N'AA:BB:CC:DD:EE:27', N'192.168.20.20', N'207', 5, DATEADD(YEAR, -1, GETDATE()), DATEADD(MONTH, 4, GETDATE()), 1, 2,    N'Точка доступа Wi-Fi канцелярии (нестабильна с 2026-04)'),
+    (4, N'ИТО-0033', 1, N'Canon LBP6030',           N'AABC012345',  NULL,                  NULL,             N'305', 5, DATEADD(YEAR, -2, GETDATE()), NULL,                          0, NULL, N'Принтер ИТО (требуется замена тонера)'),
+    (5, N'ИТО-0034', 1, N'Canon LBP6030',           N'AABC012346',  NULL,                  NULL,             N'305', 5, DATEADD(YEAR, -2, GETDATE()), NULL,                          0, NULL, N'Принтер ИТО (требуется замена тонера)'),
+    (6, N'ИТО-0078', 0, N'HP EliteDesk 800 G5',     N'2UA0245TR1',  N'AA:BB:CC:DD:EE:78', N'192.168.20.78', N'207', 3, DATEADD(YEAR, -1, GETDATE()), DATEADD(YEAR,  2, GETDATE()), 0, 2,    N'АРМ Петровой');
 SET IDENTITY_INSERT dbo.Equipment OFF;
 
 /* ============================================================================
