@@ -242,34 +242,34 @@ INSERT INTO dbo.Documents (
 ) VALUES
     /* 1. Закрытое исходящее письмо (3 недели назад) */
     (1, 1, 2, 0, N'ИСХ-2026-00012', DATEADD(DAY, -22, GETDATE()),
-     2, 2, 3, N'Ответ на запрос Министерства финансов о бюджете 2026', N'Подготовлены пояснения по статье расходов 02-04.', N'Министерство финансов СО',
+     2, 2, 3, N'Ответ на запрос Министерства финансов о бюджете 2026', N'Подготовлены пояснения по статье расходов 02-04. Подписано и отправлено почтой РФ.', N'Министерство финансов СО',
      NULL, NULL, DATEADD(DAY, -25, GETDATE()), DATEADD(DAY, -20, GETDATE()), 3, 2,
-     NULL, 2, NULL, NULL, NULL, NULL, N'Подписано и отправлено почтой РФ',
-     NULL, NULL, NULL, NULL, NULL, NULL, DATEADD(DAY, -22, GETDATE()),
+     NULL, 2, NULL, NULL, NULL, NULL, NULL,
+     NULL, NULL, NULL, NULL, NULL, NULL, NULL,
      0, NULL, N'Document'),
 
     /* 2. Входящее письмо (на исполнении, срок завтра) */
     (2, 1, 1, 0, N'ВХ-2026-00037', DATEADD(DAY, -5, GETDATE()),
      1, 2, 3, N'О предоставлении сведений о работе архивного отдела за 1 квартал', N'Запрашиваются количественные показатели обработки запросов.', N'Управление по делам архивов СО',
      N'04-12/345', DATEADD(DAY, -7, GETDATE()), DATEADD(DAY, -5, GETDATE()), DATEADD(DAY, 1, GETDATE()), 1, 7,
-     NULL, 0, NULL, NULL, NULL, NULL, N'Бурдиной — подготовить ответ',
+     NULL, 0, NULL, NULL, NULL, NULL, NULL,
      NULL, NULL, NULL, NULL, NULL, NULL, NULL,
      0, NULL, N'Document'),
 
     /* 3. Внутренняя СЗ — на согласовании */
     (3, 6, 0, 1, N'СЗ-2026-00018', DATEADD(DAY, -3, GETDATE()),
-     3, 3, 5, N'О замене картриджей в принтерах Canon LBP6030 кабинета 305', N'Прошу заменить тонер-картриджи Canon 725 в количестве 4 шт. для бесперебойной работы кабинета.', NULL,
+     3, 3, 5, N'О замене картриджей в принтерах Canon LBP6030 кабинета 305', N'Прошу заменить 4 тонер-картриджа Canon 725 в принтерах Canon LBP6030 (3 шт., каб. 305) для бесперебойной работы.', NULL,
      NULL, NULL, DATEADD(DAY, -3, GETDATE()), DATEADD(DAY, 2, GETDATE()), 1, 9,
-     NULL, 1, NULL, NULL, NULL, N'Принтеры Canon LBP6030 (3 шт.)', N'Прошу выдать со склада 4 шт.',
+     NULL, 1, NULL, NULL, NULL, NULL, NULL,
      NULL, NULL, NULL, NULL, NULL, NULL, NULL,
      0, NULL, N'Document'),
 
     /* 4. Приказ — подписан КЭП, заблокирован */
     (4, 1, 0, 1, N'ПРК-2026-00007', DATEADD(DAY, -10, GETDATE()),
-     4, 1, 1, N'Об утверждении графика отпусков на 2026 год', N'Утверждается график очередных отпусков сотрудников учреждения на 2026 год согласно приложению.', NULL,
+     4, 1, 1, N'Об утверждении графика отпусков на 2026 год', N'Утверждается график очередных отпусков сотрудников учреждения на 2026 год согласно приложению. К исполнению.', NULL,
      NULL, NULL, DATEADD(DAY, -12, GETDATE()), DATEADD(DAY, -8, GETDATE()), 3, 1,
-     NULL, 2, NULL, NULL, NULL, NULL, N'К исполнению',
-     NULL, NULL, NULL, NULL, NULL, NULL, DATEADD(DAY, -8, GETDATE()),
+     NULL, 2, NULL, NULL, NULL, NULL, NULL,
+     NULL, NULL, NULL, NULL, NULL, NULL, NULL,
      1, NULL, N'Document'),
 
     /* 5. Тикет ИТО (просрочен) — связан с Equipment.Id=3 (TP-Link EAP245) */
@@ -282,10 +282,10 @@ INSERT INTO dbo.Documents (
 
     /* 6. Заявка на ТМЦ — закрыта */
     (6, 1, 0, 0, N'СЗ-2026-00015', DATEADD(DAY, -14, GETDATE()),
-     3, 3, 5, N'О выдаче бумаги формата A4 на отдел ИТО (10 пачек)', N'Бумага требуется для печати квартальной отчётности.', NULL,
+     3, 3, 5, N'О выдаче бумаги формата A4 на отдел ИТО (10 пачек)', N'Бумага требуется для печати квартальной отчётности. Выдано полностью.', NULL,
      NULL, NULL, DATEADD(DAY, -16, GETDATE()), DATEADD(DAY, -10, GETDATE()), 3, 5,
-     NULL, 2, NULL, NULL, NULL, NULL, N'Выдано полностью',
-     NULL, NULL, NULL, NULL, NULL, NULL, DATEADD(DAY, -10, GETDATE()),
+     NULL, 2, NULL, NULL, NULL, NULL, NULL,
+     NULL, NULL, NULL, NULL, NULL, NULL, NULL,
      0, NULL, N'Document'),
 
     /* 7. Архивный запрос — на исполнении, срок < 24ч */
@@ -317,7 +317,7 @@ INSERT INTO dbo.Documents (
      2, 2, 7, N'Ответ на запрос ВХ-2026-00037 (квартальный отчёт)', N'Подготовлена сводка по обработанным запросам граждан за 1 квартал 2026 года.', N'Управление по делам архивов СО',
      NULL, NULL, DATEADD(DAY, -2, GETDATE()), DATEADD(DAY, -1, GETDATE()), 3, 7,
      2, 2, NULL, NULL, NULL, NULL, NULL,
-     NULL, NULL, NULL, NULL, NULL, NULL, DATEADD(DAY, -1, GETDATE()),
+     NULL, NULL, NULL, NULL, NULL, NULL, NULL,
      0, NULL, N'Document'),
 
     /* 11. Распоряжение — на согласовании */
@@ -333,7 +333,7 @@ INSERT INTO dbo.Documents (
      3, 6, 10, N'Заявка на выезд автомобиля Lada Largus', N'Доставка корреспонденции в районную администрацию.', NULL,
      NULL, NULL, DATEADD(DAY, -1, GETDATE()), DATEADD(DAY, 0, GETDATE()), 3, 10,
      NULL, 2, NULL, NULL, NULL, NULL, NULL,
-     NULL, NULL, NULL, NULL, NULL, NULL, DATEADD(DAY, 0, GETDATE()),
+     NULL, NULL, NULL, NULL, NULL, NULL, NULL,
      0, NULL, N'Document'),
 
     /* 13. Тикет ИТО — отправлено вендору (Phase 14, IsSentToVendor=1) */
@@ -346,10 +346,10 @@ INSERT INTO dbo.Documents (
 
     /* 14. Акт инвентаризации — внутренний документ-результат */
     (14, 6, 0, 1, N'АКТ-2026-00002', DATEADD(DAY, -55, GETDATE()),
-     3, 1, 2, N'Акт инвентаризации ТМЦ за 1 квартал 2026 года', N'Оформлено по итогам инвентаризации, выявлены небольшие расхождения по бумаге А4.', NULL,
+     3, 1, 2, N'Акт инвентаризации ТМЦ за 1 квартал 2026 года', N'Оформлено по итогам инвентаризации, выявлены небольшие расхождения по бумаге А4. Подписано всеми членами комиссии.', NULL,
      NULL, NULL, DATEADD(DAY, -56, GETDATE()), DATEADD(DAY, -50, GETDATE()), 3, 2,
-     NULL, 2, NULL, NULL, NULL, NULL, N'Подписано всеми членами комиссии',
-     NULL, NULL, NULL, NULL, NULL, NULL, DATEADD(DAY, -50, GETDATE()),
+     NULL, 2, NULL, NULL, NULL, NULL, NULL,
+     NULL, NULL, NULL, NULL, NULL, NULL, NULL,
      0, NULL, N'Document');
 SET IDENTITY_INSERT dbo.Documents OFF;
 
